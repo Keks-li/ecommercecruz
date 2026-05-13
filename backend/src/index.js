@@ -13,10 +13,14 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+import authRoutes from './routes/authRoutes.js';
+
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Backend is running' });
 });
+
+app.use('/api/auth', authRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
