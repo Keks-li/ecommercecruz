@@ -27,3 +27,5 @@ yarn-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+/src/generated/prisma
