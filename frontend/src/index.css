@@ -3,29 +3,29 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --primary: 251, 191, 36; /* #fbbf24 - Yellow 500 */
-    --background: 10, 10, 10;
-    --card: 20, 20, 20;
-    --border: 38, 38, 38;
-  }
-
   body {
-    @apply bg-[#0a0a0a] text-white antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container;
+    min-height: max(884px, 100dvh);
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-md transition-all duration-300 transform active:scale-95;
-  }
-  
-  .btn-secondary {
-    @apply bg-transparent hover:bg-white/10 text-white font-bold py-3 px-8 border border-white/20 rounded-md transition-all duration-300;
-  }
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+}
 
-  .nav-link {
-    @apply text-sm font-medium text-white/70 hover:text-yellow-500 transition-colors duration-200;
-  }
+/* Hide scrollbar for Category Quick Access / Product Feed */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
