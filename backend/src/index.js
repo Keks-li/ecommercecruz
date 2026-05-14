@@ -16,6 +16,7 @@ app.use(express.json());
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import adminProductRoutes from './routes/adminProductRoutes.js';
+import productRoutes from './routes/productRoutes.js';
 
 // Routes
 app.get('/api/health', (req, res) => {
@@ -25,6 +26,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/products', adminProductRoutes);
+app.use('/api/products', productRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
