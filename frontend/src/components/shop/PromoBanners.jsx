@@ -1,56 +1,46 @@
-import summerBanner from '../../assets/summer_sale_banner.png';
-
 export default function PromoBanners() {
   return (
-    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-6 py-10">
-      {/* Mega Summer Sale */}
-      <div className="relative h-48 rounded-2xl overflow-hidden bg-gradient-to-br from-yellow-600/20 to-yellow-900/40 border border-yellow-500/10 group cursor-pointer">
-        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
-        <div className="relative h-full p-6 flex flex-col justify-between items-start">
-          <div className="space-y-1">
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">Mega Sale</span>
-             <h3 className="text-xl font-black text-white uppercase italic leading-none">Summer <br /> Sale</h3>
-             <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mt-2">Up to 50% Off</p>
-          </div>
-          <button className="bg-yellow-500 hover:bg-yellow-400 text-black text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all">Shop Now</button>
+    <section className="px-margin-mobile py-lg bg-surface-container-low">
+      <div className="mb-sm">
+        <h3 className="font-headline-md text-headline-md-mobile text-on-background flex items-center gap-xs">
+          <span className="material-symbols-outlined text-primary-container">auto_awesome</span>
+          Combo
+        </h3>
+        <p className="text-on-surface-variant">Multiple products&nbsp;</p>
+      </div>
+      <div className="bg-surface rounded-xl border border-outline-variant p-sm shadow-xl flex flex-col gap-md relative overflow-hidden">
+        <div className="absolute top-4 right-4 bg-error-container text-on-error-container px-3 py-1 rounded-lg font-label-bold text-label-bold z-10">
+          SAVE $200
         </div>
-        <div className="absolute -right-4 -bottom-4 opacity-30 group-hover:opacity-50 transition-opacity transform rotate-12 group-hover:scale-110 duration-500">
-           <svg className="w-32 h-32 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <div className="flex items-center justify-center gap-xs">
+          <div className="w-1/2 aspect-square rounded-lg overflow-hidden bg-surface-container relative">
+            <img
+              className="w-full h-full object-contain p-4"
+              alt="A professional product shot of a sleek silver modern washing machine on a dark, reflective surface."
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuD25n65KIqrq2t-s8CrplZJwqfrw_CgFe2eQdRVNOygVqXawyQSNW-zDi6GvIGnoiIU9lIUcC2rkcAbb2EYJQwDxm3fNq-QhJnQ-4xv6oILGjfUBRTxNHXpJbIsY_dHj0m5JGHsj4PhX9VDHesNoWxYjVA2cnklEs0vdxIZpTx1AEYo9vq_IFiCJ9rEKw8Wg4f57hpyRD_R3jOG2GMGlIbEspsm_Rx_Ey46NkvXM1klu_8Ztos8LBZM3aXCyakpE-Tqicy4Kl8nH5I"
+            />
+          </div>
+          <span className="material-symbols-outlined text-primary-container text-4xl">add</span>
+          <div className="w-1/2 aspect-square rounded-lg overflow-hidden bg-surface-container">
+            <img
+              className="w-full h-full object-contain p-4"
+              alt="A modern, matte black convection microwave oven displayed in a high-key studio setting with dramatic shadows."
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAi3riCO1XUNZ2eWvVz5NYDmslutpYymqaz95zewThJRnPJ-U4DGeroDK0cFQ6JDAhuOutICv2260-zlJ_CzGECvvOAfSYnaKjQAa_lR1cFUNtLlA9_n2kNB5QDBkwMRGNErBwS6aZZvy9oEvY7BZM2DYVY_RBNWSfvmH-1WN-vlDYoGNhISSFZxPci4QpdFss1mPDmKJwDxVQ1Tv1jFPg66bawnEueWEyDgUVsmkMfPLSbwvuk1uaFHh2ITaHB89ZEbtvkUd6LE_I"
+            />
+          </div>
+        </div>
+        <div className="space-y-xs">
+          <h4 className="font-headline-md text-headline-md-mobile">Kitchen Master Set</h4>
+          <p className="text-body-md text-on-surface-variant">Titan Pro Smart Fridge + AeroTouch 30L Microwave</p>
+          <div className="flex items-baseline gap-sm">
+            <span className="font-price-display text-price-display text-primary-container">$1,299.00</span>
+            <span className="text-body-md line-through text-on-surface-variant opacity-60">$1,499.00</span>
+          </div>
+          <button className="w-full bg-primary-container text-on-primary-container py-md rounded-xl font-label-bold text-label-bold mt-sm active:scale-95 transition-transform">
+            Get Bundle Deal
+          </button>
         </div>
       </div>
-
-      {/* Stay Cool */}
-      <div className="relative h-48 rounded-2xl overflow-hidden group cursor-pointer border border-white/5">
-        <img src={summerBanner} alt="AC Banner" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
-        <div className="relative h-full p-6 flex flex-col justify-between items-start">
-          <div className="space-y-1">
-             <h3 className="text-xl font-black text-white uppercase italic leading-none">Stay Cool <br /> This Summer</h3>
-             <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mt-2">ACs starting at ₦120k</p>
-          </div>
-          <button className="bg-white hover:bg-white/90 text-black text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all">Shop Now</button>
-        </div>
-      </div>
-
-      {/* Smart Homes */}
-      <div className="relative h-48 rounded-2xl overflow-hidden bg-[#1a1a1a] border border-white/5 group cursor-pointer">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent"></div>
-        <div className="relative h-full p-6 flex flex-col justify-between items-start z-10">
-          <div className="space-y-1">
-             <h3 className="text-xl font-black text-white uppercase italic leading-none">Smart Homes <br /> Smarter Living</h3>
-             <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mt-2">Up to 40% Off</p>
-          </div>
-          <button className="bg-yellow-500 hover:bg-yellow-400 text-black text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all">Shop Now</button>
-        </div>
-        <div className="absolute top-0 right-0 h-full w-1/2 opacity-60 group-hover:opacity-80 transition-opacity">
-           <div className="grid grid-cols-2 gap-1 p-2">
-              <div className="h-10 bg-white/5 rounded"></div>
-              <div className="h-10 bg-white/5 rounded"></div>
-              <div className="h-10 bg-white/5 rounded"></div>
-              <div className="h-10 bg-white/5 rounded"></div>
-           </div>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }
