@@ -1,5 +1,29 @@
 import prisma from '../utils/prisma.js';
 
+export const getStats = async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count({
+      where: { role: 'CUSTOMER', status: 'ACTIVE' },
+    });
+
+    const totalOrders = await prisma.order.count();
+
+    const revenueResult = await prisma.order.aggregate({
+      _sum: { total_price: true },
+    });
+    const totalRevenue = revenueResult._sum.total_price || 0;
+
+    res.json({
+      totalActiveUsers: totalUsers,
+      totalOrders,
+      totalRevenue,
+    });
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getAllCustomers = async (req, res) => {
   try {
     const customers = await prisma.user.findMany({
