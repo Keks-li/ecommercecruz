@@ -14,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import adminProductRoutes from './routes/adminProductRoutes.js';
 
 // Routes
@@ -22,6 +23,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/admin/products', adminProductRoutes);
 
 // Error handling
