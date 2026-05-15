@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { protect, isAdmin } from '../middleware/auth.js';
-import { createProduct, updateProductStatus, updateProduct, getAllProducts } from '../controllers/adminProductController.js';
+import { createProduct, toggleProductStatus, updateProduct, getAllProducts } from '../controllers/adminProductController.js';
 
 const router = express.Router();
 
@@ -16,6 +16,6 @@ router.use(isAdmin);
 router.get('/', getAllProducts);
 router.post('/', upload.single('image'), createProduct);
 router.put('/:id', upload.single('image'), updateProduct);
-router.patch('/:id/status', updateProductStatus);
+router.patch('/:id/status', toggleProductStatus);
 
 export default router;

@@ -56,31 +56,33 @@ export const createProduct = async (req, res) => {
   }
 };
 
-export const updateProductStatus = async (req, res) => {
+export const toggleProductStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-
-    if (!status || !['ACTIVE', 'SUSPENDED'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid or missing status. Must be ACTIVE or SUSPENDED.' });
-    }
 
     const productId = parseInt(id, 10);
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });
     }
 
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const newStatus = existingProduct.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+
     const product = await prisma.product.update({
       where: { id: productId },
-      data: { status },
+      data: { status: newStatus },
     });
 
     return res.status(200).json(product);
   } catch (error) {
-    console.error('Error updating product status:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    console.error('Error toggling product status:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
