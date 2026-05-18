@@ -1,37 +1,23 @@
 export default function CategoryBar() {
   const categories = [
-    { name: 'Refrigerators', icon: '❄️', discount: 'Up to 30% Off' },
-    { name: 'Washing Machines', icon: '🧺', discount: 'Up to 25% Off' },
-    { name: 'Air Conditioners', icon: '💨', discount: 'Up to 20% Off' },
-    { name: 'Microwaves', icon: '🍲', discount: 'Up to 15% Off' },
-    { name: 'Vacuum Cleaners', icon: '🧹', discount: 'Up to 20% Off' },
-    { name: 'Kitchen Appliances', icon: '🍳', discount: 'Up to 30% Off' },
+    { name: 'Refrigerators', icon: 'kitchen' },
+    { name: 'Washing', icon: 'local_laundry_service' },
+    { name: 'AC Units', icon: 'ac_unit' },
+    { name: 'Microwaves', icon: 'microwave' },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-16">
-      <div className="flex justify-between items-center gap-6">
+    <section className="px-margin-mobile py-lg overflow-x-auto no-scrollbar">
+      <div className="flex gap-md min-w-max">
         {categories.map((cat) => (
-          <div key={cat.name} className="flex flex-col items-center gap-4 group cursor-pointer shrink-0">
-            <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-3xl group-hover:bg-yellow-500 group-hover:text-black transition-all duration-300 transform group-hover:scale-110 shadow-xl">
-              {cat.icon}
+          <div key={cat.name} className="flex flex-col items-center gap-xs group cursor-pointer">
+            <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center group-hover:bg-surface-container-highest transition-colors border border-outline-variant">
+              <span className="material-symbols-outlined text-primary-container">{cat.icon}</span>
             </div>
-            <div className="text-center">
-              <h3 className="text-xs font-black uppercase tracking-widest text-white group-hover:text-yellow-500 transition-colors">{cat.name}</h3>
-              <p className="text-[9px] font-bold text-white/30 uppercase mt-1 tracking-tighter">{cat.discount}</p>
-            </div>
+            <span className="text-label-bold font-label-bold">{cat.name}</span>
           </div>
         ))}
-        <div className="flex flex-col items-center gap-4 group cursor-pointer shrink-0">
-          <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-yellow-500 group-hover:text-black transition-all duration-300 shadow-xl">
-             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-          </div>
-          <div className="text-center">
-            <h3 className="text-xs font-black uppercase tracking-widest text-white">View All</h3>
-            <p className="text-[9px] font-bold text-white/30 uppercase mt-1 tracking-tighter">Categories</p>
-          </div>
-        </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -21,7 +21,7 @@ function TrashIcon() {
 }
 function SpinnerIcon() {
   return (
-    <svg className="w-5 h-5 animate-spin text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 animate-spin text-primary-container" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
     </svg>
   );
@@ -37,7 +37,7 @@ function WarningIcon() {
 }
 function EmptyCartIcon() {
   return (
-    <svg className="w-16 h-16 text-slate-600" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
+    <svg className="w-16 h-16 text-on-surface-variant" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
       <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
     </svg>
@@ -84,22 +84,22 @@ export default function CartDrawer({ open, onClose }) {
 
       {/* Drawer panel */}
       <aside
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-[#0d1117] border-l border-slate-700/60
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-surface-container border-l border-outline-variant
           shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
           <div>
-            <h2 className="text-white font-bold text-lg">Your Cart</h2>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <h2 className="text-on-background font-bold text-lg">Your Cart</h2>
+            <p className="text-on-surface-variant text-xs mt-0.5">
               {totalItems} {totalItems === 1 ? 'item' : 'items'}
             </p>
           </div>
           <button
             id="close-cart-btn"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-on-surface-variant hover:text-on-background hover:bg-surface-container-highest transition"
           >
             <CloseIcon />
           </button>
@@ -107,22 +107,22 @@ export default function CartDrawer({ open, onClose }) {
 
         {/* ── Suspension warning banner ── */}
         {suspendedWarnings.length > 0 && (
-          <div className="mx-4 mt-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
-            <div className="flex items-start gap-2 text-amber-400 mb-2">
+          <div className="mx-4 mt-4 bg-error-container/10 border border-error-container/30 rounded-xl p-4">
+            <div className="flex items-start gap-2 text-error mb-2">
               <WarningIcon />
               <p className="text-xs font-semibold leading-snug">
                 {suspendedWarnings.length} item{suspendedWarnings.length > 1 ? 's were' : ' was'} removed
                 because {suspendedWarnings.length > 1 ? 'they are' : "it's"} no longer available:
               </p>
             </div>
-            <ul className="space-y-0.5 pl-6 text-xs text-amber-300/80 list-disc">
+            <ul className="space-y-0.5 pl-6 text-xs text-error/80 list-disc">
               {suspendedWarnings.map((w) => (
                 <li key={w.id}>{w.name}</li>
               ))}
             </ul>
             <button
               onClick={clearWarnings}
-              className="mt-3 text-xs text-amber-400/70 hover:text-amber-300 underline underline-offset-2 transition"
+              className="mt-3 text-xs text-error/70 hover:text-error underline underline-offset-2 transition"
             >
               Dismiss
             </button>
@@ -131,7 +131,7 @@ export default function CartDrawer({ open, onClose }) {
 
         {/* ── Validating overlay ── */}
         {validating && (
-          <div className="flex items-center gap-2 px-6 py-3 text-slate-400 text-xs border-b border-slate-700/40">
+          <div className="flex items-center gap-2 px-6 py-3 text-on-surface-variant text-xs border-b border-outline-variant">
             <SpinnerIcon />
             Checking item availability…
           </div>
@@ -143,8 +143,8 @@ export default function CartDrawer({ open, onClose }) {
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
               <EmptyCartIcon />
               <div>
-                <p className="text-slate-300 font-medium">Your cart is empty</p>
-                <p className="text-slate-500 text-xs mt-1">Add some products from the gallery.</p>
+                <p className="text-on-surface font-medium">Your cart is empty</p>
+                <p className="text-on-surface-variant text-xs mt-1">Add some products from the gallery.</p>
               </div>
             </div>
           ) : (
@@ -161,18 +161,18 @@ export default function CartDrawer({ open, onClose }) {
 
         {/* ── Footer ── */}
         {items.length > 0 && (
-          <div className="border-t border-slate-700/60 px-6 py-5 space-y-4">
+          <div className="border-t border-outline-variant px-6 py-5 space-y-4">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-400">Subtotal</span>
-              <span className="text-white font-bold text-lg">
-                ₦{totalPrice.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              <span className="text-on-surface-variant">Subtotal</span>
+              <span className="text-on-background font-bold text-lg">
+                ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
             <button
               id="checkout-btn"
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3
-                rounded-xl transition-all duration-200 shadow-lg shadow-indigo-500/20 active:scale-[0.98]"
+              className="w-full bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-semibold py-3
+                rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98]"
             >
               Proceed to Checkout
             </button>
@@ -180,7 +180,7 @@ export default function CartDrawer({ open, onClose }) {
             <button
               id="clear-cart-btn"
               onClick={clearCart}
-              className="w-full text-slate-500 hover:text-rose-400 text-xs font-medium transition py-1"
+              className="w-full text-on-surface-variant hover:text-error text-xs font-medium transition py-1"
             >
               Clear cart
             </button>
@@ -194,35 +194,35 @@ export default function CartDrawer({ open, onClose }) {
 // ─── CartItem ─────────────────────────────────────────────────────────────────
 function CartItem({ item, onRemove, onQtyChange }) {
   return (
-    <div className="flex gap-3 bg-slate-800/50 border border-slate-700/40 rounded-xl p-3">
+    <div className="flex gap-3 bg-surface border border-outline-variant rounded-xl p-3">
       {/* Thumbnail */}
-      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
+      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-highest">
         <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-white text-sm font-medium truncate leading-snug">{item.name}</p>
-        <p className="text-slate-500 text-[10px] font-mono mt-0.5">{item.unique_code}</p>
-        <p className="text-indigo-400 text-xs font-semibold mt-1">
-          ₦{(item.price * item.qty).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+        <p className="text-on-background text-sm font-medium truncate leading-snug">{item.name}</p>
+        <p className="text-on-surface-variant text-[10px] font-mono mt-0.5">{item.unique_code}</p>
+        <p className="text-primary-container text-xs font-semibold mt-1">
+          ${(item.price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
       </div>
 
       {/* Controls */}
       <div className="flex flex-col items-end justify-between gap-1">
-        <button onClick={onRemove} className="text-slate-600 hover:text-rose-400 transition p-1">
+        <button onClick={onRemove} className="text-on-surface-variant hover:text-error transition p-1">
           <TrashIcon />
         </button>
-        <div className="flex items-center gap-1.5 bg-slate-900/60 rounded-lg px-2 py-1">
+        <div className="flex items-center gap-1.5 bg-surface-container-highest rounded-lg px-2 py-1">
           <button
             onClick={() => onQtyChange(item.qty - 1)}
-            className="text-slate-400 hover:text-white w-4 text-center font-bold leading-none transition"
+            className="text-on-surface-variant hover:text-on-background w-4 text-center font-bold leading-none transition"
           >−</button>
-          <span className="text-white text-xs font-semibold w-5 text-center">{item.qty}</span>
+          <span className="text-on-background text-xs font-semibold w-5 text-center">{item.qty}</span>
           <button
             onClick={() => onQtyChange(item.qty + 1)}
-            className="text-slate-400 hover:text-white w-4 text-center font-bold leading-none transition"
+            className="text-on-surface-variant hover:text-on-background w-4 text-center font-bold leading-none transition"
           >+</button>
         </div>
       </div>
