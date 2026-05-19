@@ -12,8 +12,16 @@ export default function ProductCard({ product }) {
     setTimeout(() => setFlash(false), 1500);
   }
 
+  function handleNavigate(e) {
+    if (e.target.closest('button')) return;
+    window.location.href = `/product/${product.id}`;
+  }
+
   return (
-    <div className="min-w-[200px] bg-surface-container-low rounded-2xl p-3 snap-center relative group cursor-pointer flex flex-col justify-between">
+    <div
+      className="min-w-[200px] bg-surface-container-low rounded-2xl p-3 snap-center relative group cursor-pointer flex flex-col justify-between"
+      onClick={handleNavigate}
+    >
       <button
         onClick={handleAdd}
         className={`absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center bg-white/80 backdrop-blur-sm rounded-full transition-colors
