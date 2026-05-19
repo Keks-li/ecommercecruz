@@ -137,6 +137,8 @@ export default function ProductsTab() {
                 <th className="px-6 py-4 font-semibold w-16">Image</th>
                 <th className="px-6 py-4 font-semibold">Name</th>
                 <th className="px-6 py-4 font-semibold">Code</th>
+                <th className="px-6 py-4 font-semibold">Type</th>
+                <th className="px-6 py-4 font-semibold">Category</th>
                 <th className="px-6 py-4 font-semibold">Price</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
@@ -145,7 +147,7 @@ export default function ProductsTab() {
             <tbody className="divide-y divide-slate-700/50 text-slate-300">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
                     No products found.
                   </td>
                 </tr>
@@ -157,6 +159,8 @@ export default function ProductsTab() {
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-200">{product.name}</td>
                     <td className="px-6 py-4 font-mono text-xs text-slate-400">{product.unique_code}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-300">{product.type}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-300">{product.category || '-'}</td>
                     <td className="px-6 py-4 font-semibold text-indigo-400">
                       ₦{Number(product.price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </td>
@@ -230,6 +234,29 @@ export default function ProductsTab() {
                   required={modalMode === 'add'}
                   defaultValue={currentProduct?.price || ''}
                   className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Type</label>
+                <select
+                  name="type"
+                  defaultValue={currentProduct?.type || 'SINGLE'}
+                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+                >
+                  <option value="SINGLE">Single</option>
+                  <option value="COMBO">Combo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Category</label>
+                <input
+                  name="category"
+                  type="text"
+                  defaultValue={currentProduct?.category || ''}
+                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+                  placeholder="e.g. Electronics"
                 />
               </div>
 

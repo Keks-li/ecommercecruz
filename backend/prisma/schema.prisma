@@ -20,6 +20,11 @@ enum Status {
   SUSPENDED
 }
 
+enum ProductType {
+  SINGLE
+  COMBO
+}
+
 model User {
   id       Int      @id @default(autoincrement())
   email    String   @unique
@@ -36,6 +41,8 @@ model Product {
   price       Float
   unique_code String   @unique
   status      Status
+  type        ProductType @default(SINGLE)
+  category    String?
   image_url   String
   order_items OrderItem[]
 }

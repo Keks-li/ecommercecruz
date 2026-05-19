@@ -4,10 +4,14 @@ import cloudinary from '../utils/cloudinary.js';
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, status } = req.body;
+    const { name, description, price, status, type, category } = req.body;
 
     if (!name || !description || !price) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (type && !['SINGLE', 'COMBO'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid product type. Must be SINGLE or COMBO.' });
     }
 
     if (!req.file) {
@@ -35,6 +39,8 @@ export const createProduct = async (req, res) => {
               price: parseFloat(price),
               unique_code,
               status: status || 'ACTIVE',
+              type: type || 'SINGLE',
+              category: category || null,
               image_url: result.secure_url,
             },
           });
@@ -88,11 +94,15 @@ export const updateProductStatus = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, status } = req.body;
+    const { name, description, price, status, type, category } = req.body;
 
     const productId = parseInt(id, 10);
     if (isNaN(productId)) {
       return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    if (type && !['SINGLE', 'COMBO'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid product type. Must be SINGLE or COMBO.' });
     }
 
     const data = {};
@@ -100,6 +110,8 @@ export const updateProduct = async (req, res) => {
     if (description) data.description = description;
     if (price) data.price = parseFloat(price);
     if (status) data.status = status;
+    if (type) data.type = type;
+    if (category !== undefined) data.category = category;
 
     let updateData = { ...data };
 
