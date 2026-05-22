@@ -18,6 +18,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import adminProductRoutes from './routes/adminProductRoutes.js';
 import adminOrderRoutes from './routes/adminOrderRoutes.js';
 import productRoutes from './routes/productRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 
 // Routes
 app.get('/api/health', (req, res) => {
@@ -29,6 +30,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin/products', adminProductRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

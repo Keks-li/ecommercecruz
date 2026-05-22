@@ -1,5 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import api from '../../services/api';
+
+const regions = {
+  "greater-accra": ["Accra Metropolis", "Tema Metropolis", "Ga East", "Ga West"],
+  "ashanti": ["Kumasi Metropolis", "Obuasi Municipal", "Ejisu-Juaben", "Amansie West"],
+  "central": ["Cape Coast Metropolis", "Awutu Senya", "Effutu", "Komenda/Edina/Eguafo/Abirem"],
+  "eastern": ["New Juaben", "Nsawam Adoagyiri", "Akuapem North", "East Akim"],
+  "western": ["Sekondi-Takoradi Metropolis", "Tarkwa Nsuaem", "Ellembelle", "Jomoro"],
+  "volta": ["Ho Municipal", "Ketu South", "Kpando", "Hohoe"],
+  "northern": ["Tamale Metropolis", "Sagnarigu", "Yendi", "Tolon"],
+  "upper-east": ["Bolgatanga Municipal", "Kassena Nankana", "Bawku Municipal", "Navrongo"],
+  "upper-west": ["Wa Municipal", "Nadowli-Kaleo", "Jirapa", "Lawra"],
+  "bono": ["Sunyani Municipal", "Berekum", "Dormaa", "Wenchi"],
+  "bono-east": ["Techiman Municipal", "Kintampo North", "Nkoranza South", "Atebubu-Amantin"],
+  "ahafo": ["Goaso Municipal", "Asunafo North", "Tano South", "Tano North"],
+  "savannah": ["Damongo", "Bole", "West Gonja", "East Gonja"],
+  "north-east": ["Nalerigu", "Walewale", "East Mamprusi", "West Mamprusi"],
+  "oti": ["Dambai", "Krachi East", "Nkwanta South", "Kadjebi"],
+  "western-north": ["Sefwi Wiawso", "Bibiani-Anhwiaso-Bekwai", "Juaboso", "Aowin"]
+};
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function CloseIcon() {
@@ -62,9 +83,31 @@ export default function CartDrawer({ open, onClose }) {
     validateCart,
   } = useCart();
 
-  // Validate cart every time the drawer opens
+  const navigate = useNavigate();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(null);
+  const [authPrompt, setAuthPrompt] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+
+  // Step and location states
+  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart' | 'address'
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [city, setCity] = useState('');
+
+  // Validate cart every time the drawer opens; reset states when closed
   useEffect(() => {
-    if (open) validateCart();
+    if (open) {
+      validateCart();
+    } else {
+      setCheckoutSuccess(null);
+      setAuthPrompt(false);
+      setCheckoutError('');
+      setCheckoutStep('cart');
+      setSelectedRegion('');
+      setSelectedDistrict('');
+      setCity('');
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trap body scroll while open
@@ -72,6 +115,56 @@ export default function CartDrawer({ open, onClose }) {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
+
+  const handleProceedToCheckout = () => {
+    setCheckoutError('');
+    const userStr = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+
+    if (!token || !userStr) {
+      setAuthPrompt(true);
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    if (user.role !== 'CUSTOMER') {
+      setAuthPrompt(true);
+      return;
+    }
+
+    // Authenticated! Go to the delivery step
+    setCheckoutStep('address');
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!selectedRegion || !selectedDistrict || !city.trim()) {
+      setCheckoutError('Please fill out all delivery details.');
+      return;
+    }
+
+    setCheckoutError('');
+    setCheckoutLoading(true);
+    try {
+      const orderItems = items.map(item => ({
+        id: item.id,
+        qty: item.qty
+      }));
+
+      const { data } = await api.post('/orders', {
+        items: orderItems,
+        pickup_region: selectedRegion,
+        pickup_district: selectedDistrict,
+        pickup_city: city.trim()
+      });
+
+      clearCart();
+      setCheckoutSuccess(data);
+    } catch (err) {
+      setCheckoutError(err.response?.data?.error || 'Failed to process order. Please try again.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   return (
     <>
@@ -105,86 +198,308 @@ export default function CartDrawer({ open, onClose }) {
           </button>
         </div>
 
-        {/* ── Suspension warning banner ── */}
-        {suspendedWarnings.length > 0 && (
-          <div className="mx-4 mt-4 bg-error-container/10 border border-error-container/30 rounded-xl p-4">
-            <div className="flex items-start gap-2 text-error mb-2">
-              <WarningIcon />
-              <p className="text-xs font-semibold leading-snug">
-                {suspendedWarnings.length} item{suspendedWarnings.length > 1 ? 's were' : ' was'} removed
-                because {suspendedWarnings.length > 1 ? 'they are' : "it's"} no longer available:
+        {/* Render Success Screen */}
+        {checkoutSuccess ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <span className="material-symbols-outlined text-5xl text-emerald-400 bg-emerald-500/10 p-4 rounded-3xl animate-pulse">
+              check_circle
+            </span>
+            <div className="space-y-2">
+              <h3 className="text-on-background font-bold text-lg">Order Placed Successfully!</h3>
+              <p className="text-on-surface-variant text-xs leading-relaxed max-w-xs mx-auto">
+                Thank you for your purchase. Your order was successfully processed.
+              </p>
+              <p className="text-indigo-400 text-xs font-mono font-semibold pt-2">
+                Order Reference: #CRZ-{checkoutSuccess.id.toString().padStart(5, '0')}
               </p>
             </div>
-            <ul className="space-y-0.5 pl-6 text-xs text-error/80 list-disc">
-              {suspendedWarnings.map((w) => (
-                <li key={w.id}>{w.name}</li>
-              ))}
-            </ul>
-            <button
-              onClick={clearWarnings}
-              className="mt-3 text-xs text-error/70 hover:text-error underline underline-offset-2 transition"
-            >
-              Dismiss
-            </button>
+            <div className="w-full space-y-3 pt-4">
+              <button
+                onClick={() => {
+                  onClose();
+                  setCheckoutSuccess(null);
+                  navigate('/profile');
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-all text-sm duration-200"
+              >
+                View My Orders
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  setCheckoutSuccess(null);
+                }}
+                className="w-full text-on-surface-variant hover:text-on-background text-xs font-semibold py-2 transition"
+              >
+                Continue Shopping
+              </button>
+            </div>
           </div>
-        )}
-
-        {/* ── Validating overlay ── */}
-        {validating && (
-          <div className="flex items-center gap-2 px-6 py-3 text-on-surface-variant text-xs border-b border-outline-variant">
-            <SpinnerIcon />
-            Checking item availability…
+        ) : authPrompt ? (
+          /* Render Auth Required Overlay */
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <span className="material-symbols-outlined text-5xl text-[#c7e74c] bg-surface-container-highest p-4 rounded-3xl">
+              account_circle
+            </span>
+            <div className="space-y-2">
+              <h3 className="text-on-background font-bold text-lg font-price-display">Account Required</h3>
+              <p className="text-on-surface-variant text-xs leading-relaxed max-w-xs mx-auto">
+                Please log in or create a customer account to check out and track your order.
+              </p>
+            </div>
+            <div className="w-full space-y-3 pt-4">
+              <button
+                onClick={() => {
+                  onClose();
+                  navigate('/auth?redirect=/');
+                }}
+                className="w-full bg-[#c7e74c] hover:bg-[#b5d342] text-black font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-all text-sm duration-200"
+              >
+                Sign In / Sign Up
+              </button>
+              <button
+                onClick={() => setAuthPrompt(false)}
+                className="w-full text-on-surface-variant hover:text-on-background text-xs font-semibold py-2 transition"
+              >
+                Go Back to Cart
+              </button>
+            </div>
           </div>
-        )}
+        ) : checkoutStep === 'address' ? (
+          /* Render Delivery & Pickup address entry step */
+          <div className="flex-1 flex flex-col justify-between p-6">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCheckoutStep('cart')}
+                  className="p-1 rounded-lg text-on-surface-variant hover:text-on-background hover:bg-surface-container-highest transition"
+                >
+                  <span className="material-symbols-outlined text-[20px] font-bold">arrow_back</span>
+                </button>
+                <div>
+                  <h3 className="text-on-background font-bold text-lg">Delivery Details</h3>
+                  <p className="text-on-surface-variant text-xs mt-0.5">Please provide your pickup location</p>
+                </div>
+              </div>
 
-        {/* ── Items list ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          {items.length === 0 && !validating ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-              <EmptyCartIcon />
-              <div>
-                <p className="text-on-surface font-medium">Your cart is empty</p>
-                <p className="text-on-surface-variant text-xs mt-1">Add some products from the gallery.</p>
+              {checkoutError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-xs">
+                  {checkoutError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {/* Region Select */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-on-surface-variant" htmlFor="drawer-region-select">
+                    Region
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="block w-full px-3.5 py-3 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface text-xs appearance-none focus:outline-none focus:border-indigo-500 transition-colors"
+                      id="drawer-region-select"
+                      value={selectedRegion}
+                      onChange={(e) => {
+                        setSelectedRegion(e.target.value);
+                        setSelectedDistrict('');
+                      }}
+                    >
+                      <option disabled value="">Select Region</option>
+                      <option value="greater-accra">Greater Accra</option>
+                      <option value="ashanti">Ashanti</option>
+                      <option value="central">Central</option>
+                      <option value="eastern">Eastern</option>
+                      <option value="western">Western</option>
+                      <option value="volta">Volta</option>
+                      <option value="northern">Northern</option>
+                      <option value="upper-east">Upper East</option>
+                      <option value="upper-west">Upper West</option>
+                      <option value="bono">Bono</option>
+                      <option value="bono-east">Bono East</option>
+                      <option value="ahafo">Ahafo</option>
+                      <option value="savannah">Savannah</option>
+                      <option value="north-east">North East</option>
+                      <option value="oti">Oti</option>
+                      <option value="western-north">Western North</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <span className="material-symbols-outlined text-secondary text-[18px]">expand_more</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* District Select */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-on-surface-variant" htmlFor="drawer-district-select">
+                    District
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="block w-full px-3.5 py-3 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface text-xs appearance-none focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+                      id="drawer-district-select"
+                      value={selectedDistrict}
+                      onChange={(e) => setSelectedDistrict(e.target.value)}
+                      disabled={!selectedRegion}
+                    >
+                      <option disabled value="">Select District</option>
+                      {selectedRegion && regions[selectedRegion]?.map(district => (
+                        <option key={district} value={district}>{district}</option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <span className="material-symbols-outlined text-secondary text-[18px]">expand_more</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Street / City Input */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-on-surface-variant" htmlFor="drawer-pickup-location">
+                    City or Street Address
+                  </label>
+                  <input
+                    className="block w-full px-3.5 py-3 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface text-xs focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-secondary"
+                    id="drawer-pickup-location"
+                    placeholder="Enter city or street name"
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 bg-surface-container/50 p-3.5 rounded-xl border border-outline-variant/30">
+                <span className="material-symbols-outlined text-[16px] text-secondary mt-0.5">info</span>
+                <p className="font-body-sm text-xs text-secondary italic">
+                  Note: Delivery amount will be determined based on location after payment.
+                </p>
               </div>
             </div>
-          ) : (
-            items.map((item) => (
-              <CartItem
-                key={item.id}
-                item={item}
-                onRemove={() => removeItem(item.id)}
-                onQtyChange={(qty) => updateQty(item.id, qty)}
-              />
-            ))
-          )}
-        </div>
 
-        {/* ── Footer ── */}
-        {items.length > 0 && (
-          <div className="border-t border-outline-variant px-6 py-5 space-y-4">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-on-surface-variant">Subtotal</span>
-              <span className="text-on-background font-bold text-lg">
-                ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </span>
+            {/* Footer containing Checkout controls */}
+            <div className="border-t border-outline-variant pt-5 space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-on-surface-variant font-medium">Order Total</span>
+                <span className="text-on-background font-bold text-lg">
+                  ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <button
+                id="place-order-btn"
+                onClick={handlePlaceOrder}
+                disabled={checkoutLoading || !selectedRegion || !selectedDistrict || !city.trim()}
+                className="w-full bg-[#c7e74c] hover:bg-[#b5d342] disabled:opacity-55 disabled:cursor-not-allowed text-black font-bold py-3.5
+                  rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+              >
+                {checkoutLoading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Placing Order...
+                  </>
+                ) : (
+                  'Place Secure Order'
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Render Standard Cart Items & Controls */
+          <>
+            {/* ── Suspension warning banner ── */}
+            {suspendedWarnings.length > 0 && (
+              <div className="mx-4 mt-4 bg-error-container/10 border border-error-container/30 rounded-xl p-4">
+                <div className="flex items-start gap-2 text-error mb-2">
+                  <WarningIcon />
+                  <p className="text-xs font-semibold leading-snug">
+                    {suspendedWarnings.length} item{suspendedWarnings.length > 1 ? 's were' : ' was'} removed
+                    because {suspendedWarnings.length > 1 ? 'they are' : "it's"} no longer available:
+                  </p>
+                </div>
+                <ul className="space-y-0.5 pl-6 text-xs text-error/80 list-disc">
+                  {suspendedWarnings.map((w) => (
+                    <li key={w.id}>{w.name}</li>
+                  ))}
+                </ul>
+                <button
+                  onClick={clearWarnings}
+                  className="mt-3 text-xs text-error/70 hover:text-error underline underline-offset-2 transition"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* ── Validating overlay ── */}
+            {validating && (
+              <div className="flex items-center gap-2 px-6 py-3 text-on-surface-variant text-xs border-b border-outline-variant">
+                <SpinnerIcon />
+                Checking item availability…
+              </div>
+            )}
+
+            {/* ── Checkout Error banner ── */}
+            {checkoutError && (
+              <div className="mx-4 mt-4 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-xs">
+                {checkoutError}
+              </div>
+            )}
+
+            {/* ── Items list ── */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {items.length === 0 && !validating ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                  <EmptyCartIcon />
+                  <div>
+                    <p className="text-on-surface font-medium">Your cart is empty</p>
+                    <p className="text-on-surface-variant text-xs mt-1">Add some products from the gallery.</p>
+                  </div>
+                </div>
+              ) : (
+                items.map((item) => (
+                  <CartItem
+                    key={item.id}
+                    item={item}
+                    onRemove={() => removeItem(item.id)}
+                    onQtyChange={(qty) => updateQty(item.id, qty)}
+                  />
+                ))
+              )}
             </div>
 
-            <button
-              id="checkout-btn"
-              className="w-full bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-semibold py-3
-                rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98]"
-            >
-              Proceed to Checkout
-            </button>
+            {/* ── Footer ── */}
+            {items.length > 0 && (
+              <div className="border-t border-outline-variant px-6 py-5 space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-on-surface-variant">Subtotal</span>
+                  <span className="text-on-background font-bold text-lg">
+                    ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
 
-            <button
-              id="clear-cart-btn"
-              onClick={clearCart}
-              className="w-full text-on-surface-variant hover:text-error text-xs font-medium transition py-1"
-            >
-              Clear cart
-            </button>
-          </div>
+                <button
+                  id="checkout-btn"
+                  onClick={handleProceedToCheckout}
+                  disabled={checkoutLoading}
+                  className="w-full bg-[#c7e74c] hover:bg-[#b5d342] disabled:opacity-60 text-black font-bold py-3.5
+                    rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                >
+                  Proceed to Checkout
+                </button>
+
+                <button
+                  id="clear-cart-btn"
+                  onClick={clearCart}
+                  className="w-full text-on-surface-variant hover:text-error text-xs font-medium transition py-1"
+                >
+                  Clear cart
+                </button>
+              </div>
+            )}
+          </>
         )}
       </aside>
     </>

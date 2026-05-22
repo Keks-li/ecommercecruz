@@ -262,10 +262,13 @@ export default function ProductGallery() {
           <span className="material-symbols-outlined">shopping_cart</span>
           <span className="font-label-md text-label-md">Cart</span>
         </button>
-        <a className="flex flex-col items-center justify-center text-secondary hover:text-primary-container transition-colors active:scale-110 duration-200" href="#">
+        <Link 
+          to="/profile"
+          className="flex flex-col items-center justify-center text-secondary hover:text-[#c7e74c] transition-colors active:scale-110 duration-200"
+        >
           <span className="material-symbols-outlined">person</span>
           <span className="font-label-md text-label-md">Profile</span>
-        </a>
+        </Link>
       </nav>
     </>
   );

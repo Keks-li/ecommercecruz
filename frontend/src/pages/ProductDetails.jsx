@@ -3,25 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import api from '../services/api';
 
-const regions = {
-  "greater-accra": ["Accra Metropolis", "Tema Metropolis", "Ga East", "Ga West"],
-  "ashanti": ["Kumasi Metropolis", "Obuasi Municipal", "Ejisu-Juaben", "Amansie West"],
-  "central": ["Cape Coast Metropolis", "Awutu Senya", "Effutu", "Komenda/Edina/Eguafo/Abirem"],
-  "eastern": ["New Juaben", "Nsawam Adoagyiri", "Akuapem North", "East Akim"],
-  "western": ["Sekondi-Takoradi Metropolis", "Tarkwa Nsuaem", "Ellembelle", "Jomoro"],
-  "volta": ["Ho Municipal", "Ketu South", "Kpando", "Hohoe"],
-  "northern": ["Tamale Metropolis", "Sagnarigu", "Yendi", "Tolon"],
-  "upper-east": ["Bolgatanga Municipal", "Kassena Nankana", "Bawku Municipal", "Navrongo"],
-  "upper-west": ["Wa Municipal", "Nadowli-Kaleo", "Jirapa", "Lawra"],
-  "bono": ["Sunyani Municipal", "Berekum", "Dormaa", "Wenchi"],
-  "bono-east": ["Techiman Municipal", "Kintampo North", "Nkoranza South", "Atebubu-Amantin"],
-  "ahafo": ["Goaso Municipal", "Asunafo North", "Tano South", "Tano North"],
-  "savannah": ["Damongo", "Bole", "West Gonja", "East Gonja"],
-  "north-east": ["Nalerigu", "Walewale", "East Mamprusi", "West Mamprusi"],
-  "oti": ["Dambai", "Krachi East", "Nkwanta South", "Kadjebi"],
-  "western-north": ["Sefwi Wiawso", "Bibiani-Anhwiaso-Bekwai", "Juaboso", "Aowin"]
-};
-
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,9 +12,6 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [selectedRegion, setSelectedRegion] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [city, setCity] = useState('');
   const [toastOpen, setToastOpen] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
 
@@ -61,13 +39,6 @@ export default function ProductDetails() {
       setTimeout(() => setToastOpen(false), 3000);
     }, 800);
   };
-
-  const handleRegionChange = (e) => {
-    setSelectedRegion(e.target.value);
-    setSelectedDistrict('');
-  };
-
-  const isCityDisabled = !selectedRegion || !selectedDistrict;
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (error) return <div className="min-h-screen flex items-center justify-center text-error">{error}</div>;
@@ -143,92 +114,6 @@ export default function ProductDetails() {
             </p>
           </div>
 
-          {/* Delivery Info */}
-          <div className="space-y-2">
-            <label className="block font-label-lg text-label-lg text-on-surface mb-2" htmlFor="pickup-location-group">
-              Pick-up Location
-            </label>
-            <div className="space-y-3" id="pickup-location-group">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">map</span>
-                </div>
-                <select
-                  className="block w-full pl-10 pr-10 py-3 bg-surface-container-low border-none rounded-xl text-on-surface font-body-sm appearance-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-container transition-colors"
-                  id="region-select"
-                  name="region"
-                  value={selectedRegion}
-                  onChange={handleRegionChange}
-                >
-                  <option disabled value="">Select Region</option>
-                  <option value="greater-accra">Greater Accra</option>
-                  <option value="ashanti">Ashanti</option>
-                  <option value="central">Central</option>
-                  <option value="eastern">Eastern</option>
-                  <option value="western">Western</option>
-                  <option value="volta">Volta</option>
-                  <option value="northern">Northern</option>
-                  <option value="upper-east">Upper East</option>
-                  <option value="upper-west">Upper West</option>
-                  <option value="bono">Bono</option>
-                  <option value="bono-east">Bono East</option>
-                  <option value="ahafo">Ahafo</option>
-                  <option value="savannah">Savannah</option>
-                  <option value="north-east">North East</option>
-                  <option value="oti">Oti</option>
-                  <option value="western-north">Western North</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">expand_more</span>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">location_city</span>
-                </div>
-                <select
-                  className="block w-full pl-10 pr-10 py-3 bg-surface-container-low border-none rounded-xl text-on-surface font-body-sm appearance-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-container transition-colors"
-                  id="district-select"
-                  name="district"
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  disabled={!selectedRegion}
-                >
-                  <option disabled value="">Select District</option>
-                  {selectedRegion && regions[selectedRegion]?.map(district => (
-                    <option key={district} value={district}>{district}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">expand_more</span>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">location_on</span>
-                </div>
-                <input
-                  className={`block w-full pl-10 pr-3 py-3 ${isCityDisabled ? 'bg-surface-container-low/50 text-secondary' : 'bg-surface-container-low text-on-surface'} border-none rounded-xl font-body-sm placeholder:text-secondary focus:ring-2 focus:ring-primary/20 focus:bg-surface-container transition-colors`}
-                  id="pickup-location"
-                  name="pickup-location"
-                  placeholder="Enter city or street"
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  disabled={isCityDisabled}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 mt-stack-sm">
-            <span className="material-symbols-outlined text-[16px] text-secondary mt-0.5">info</span>
-            <p className="font-body-sm text-body-sm text-secondary italic">
-                Note: Delivery amount will be determined based on location after payment.
-            </p>
-          </div>
         </section>
       </main>
 
