@@ -1,15 +1,15 @@
 import { v2 as cloudinary } from 'cloudinary';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// The Cloudinary SDK natively supports the CLOUDINARY_URL env variable.
+// Setting it in the environment is sufficient — no manual parsing needed.
+// Format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_URL?.split('@')[1] || '',
-  api_key: process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_URL?.split('://')[1]?.split(':')[0] || '',
-  api_secret: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_URL?.split(':')[2]?.split('@')[0] || ''
-});
-
-// Since the .env.example uses CLOUDINARY_URL, Cloudinary actually automatically picks it up
-// if process.env.CLOUDINARY_URL is set, but explicit config ensures no issues if structured differently
+if (!process.env.CLOUDINARY_URL) {
+  console.error('⚠️  CLOUDINARY_URL is not set. Image uploads will fail.');
+} else {
+  // Log partial URL for debugging (never log the full secret)
+  const cloudName = process.env.CLOUDINARY_URL.split('@')[1];
+  console.log(`☁️  Cloudinary configured for cloud: ${cloudName}`);
+}
 
 export default cloudinary;
