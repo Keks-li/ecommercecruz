@@ -16,6 +16,8 @@ export const getActiveProducts = async (req, res) => {
         price: true,
         unique_code: true,
         status: true,
+        type: true,
+        category: true,
         image_url: true,
       },
     });

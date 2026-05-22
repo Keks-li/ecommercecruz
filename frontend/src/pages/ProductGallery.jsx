@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/shop/ProductCard';
 import CartDrawer from '../components/shop/CartDrawer';
@@ -24,13 +25,30 @@ export default function ProductGallery() {
   const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { totalItems } = useCart();
+  const { categoryName } = useParams();
+  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
-    return products.filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.unique_code.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [products, search]);
+    return products.filter((p) => {
+      if (categoryName) {
+        if (!p.category || p.category.toLowerCase() !== categoryName.toLowerCase()) {
+          return false;
+        }
+      }
+      return (
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.unique_code.toLowerCase().includes(search.toLowerCase())
+      );
+    });
+  }, [products, search, categoryName]);
+
+  const singleProducts = useMemo(() => {
+    return filtered.filter((p) => p.type === 'SINGLE' || !p.type);
+  }, [filtered]);
+
+  const comboProducts = useMemo(() => {
+    return filtered.filter((p) => p.type === 'COMBO');
+  }, [filtered]);
 
   return (
     <>
@@ -68,37 +86,100 @@ export default function ProductGallery() {
         <section className="space-y-stack-md">
           <div className="flex justify-between items-center">
             <h2 className="font-headline-lg-mobile text-headline-lg-mobile">Categories</h2>
-            <button className="flex items-center gap-1 text-label-lg font-label-lg text-secondary hover:text-primary transition-colors">
+            <button onClick={() => navigate('/')} className="flex items-center gap-1 text-label-lg font-label-lg text-secondary hover:text-primary transition-colors">
               See all <span className="material-symbols-outlined text-[16px]">chevron_right</span>
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-gutter-grid">
-            <div className="flex flex-col items-center gap-stack-sm group cursor-pointer">
-              <div className="w-full aspect-square bg-surface-container-low rounded-xl flex items-center justify-center group-hover:bg-primary-container transition-colors duration-300">
-                <span className="material-symbols-outlined text-secondary group-hover:text-on-primary-container">smartphone</span>
+          <div className="grid grid-cols-4 gap-gutter-grid justify-items-center">
+            {/* Phones */}
+            <div 
+              onClick={() => navigate('/category/phones')}
+              className="flex flex-col items-center gap-2 group cursor-pointer text-center"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
+                ${categoryName?.toLowerCase() === 'phones' 
+                  ? 'bg-primary-container text-on-primary-container scale-105 ring-2 ring-primary' 
+                  : 'bg-surface-container-low text-secondary group-hover:bg-primary-container group-hover:text-on-primary-container'
+                }`}
+              >
+                <span className="material-symbols-outlined">smartphone</span>
               </div>
-              <span className="font-label-md text-label-md text-on-surface">Phones</span>
+              <span className={`font-label-md text-label-md transition-colors ${categoryName?.toLowerCase() === 'phones' ? 'text-primary font-bold' : 'text-on-surface'}`}>Phones</span>
             </div>
-            <div className="flex flex-col items-center gap-stack-sm group cursor-pointer">
-              <div className="w-full aspect-square bg-surface-container-low rounded-xl flex items-center justify-center group-hover:bg-primary-container transition-colors duration-300">
-                <span className="material-symbols-outlined text-secondary group-hover:text-on-primary-container">videogame_asset</span>
+
+            {/* Consoles */}
+            <div 
+              onClick={() => navigate('/category/consoles')}
+              className="flex flex-col items-center gap-2 group cursor-pointer text-center"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
+                ${categoryName?.toLowerCase() === 'consoles' 
+                  ? 'bg-primary-container text-on-primary-container scale-105 ring-2 ring-primary' 
+                  : 'bg-surface-container-low text-secondary group-hover:bg-primary-container group-hover:text-on-primary-container'
+                }`}
+              >
+                <span className="material-symbols-outlined">videogame_asset</span>
               </div>
-              <span className="font-label-md text-label-md text-on-surface">Consoles</span>
+              <span className={`font-label-md text-label-md transition-colors ${categoryName?.toLowerCase() === 'consoles' ? 'text-primary font-bold' : 'text-on-surface'}`}>Consoles</span>
             </div>
-            <div className="flex flex-col items-center gap-stack-sm group cursor-pointer">
-              <div className="w-full aspect-square bg-surface-container-low rounded-xl flex items-center justify-center group-hover:bg-primary-container transition-colors duration-300">
-                <span className="material-symbols-outlined text-secondary group-hover:text-on-primary-container">laptop_mac</span>
+
+            {/* Laptops */}
+            <div 
+              onClick={() => navigate('/category/laptops')}
+              className="flex flex-col items-center gap-2 group cursor-pointer text-center"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
+                ${categoryName?.toLowerCase() === 'laptops' 
+                  ? 'bg-primary-container text-on-primary-container scale-105 ring-2 ring-primary' 
+                  : 'bg-surface-container-low text-secondary group-hover:bg-primary-container group-hover:text-on-primary-container'
+                }`}
+              >
+                <span className="material-symbols-outlined">laptop_mac</span>
               </div>
-              <span className="font-label-md text-label-md text-on-surface">Laptops</span>
+              <span className={`font-label-md text-label-md transition-colors ${categoryName?.toLowerCase() === 'laptops' ? 'text-primary font-bold' : 'text-on-surface'}`}>Laptops</span>
             </div>
-            <div className="flex flex-col items-center gap-stack-sm group cursor-pointer">
-              <div className="w-full aspect-square bg-surface-container-low rounded-xl flex items-center justify-center group-hover:bg-primary-container transition-colors duration-300">
-                <span className="material-symbols-outlined text-secondary group-hover:text-on-primary-container">photo_camera</span>
+
+            {/* Cameras */}
+            <div 
+              onClick={() => navigate('/category/cameras')}
+              className="flex flex-col items-center gap-2 group cursor-pointer text-center"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300
+                ${categoryName?.toLowerCase() === 'cameras' 
+                  ? 'bg-primary-container text-on-primary-container scale-105 ring-2 ring-primary' 
+                  : 'bg-surface-container-low text-secondary group-hover:bg-primary-container group-hover:text-on-primary-container'
+                }`}
+              >
+                <span className="material-symbols-outlined">photo_camera</span>
               </div>
-              <span className="font-label-md text-label-md text-on-surface">Cameras</span>
+              <span className={`font-label-md text-label-md transition-colors ${categoryName?.toLowerCase() === 'cameras' ? 'text-primary font-bold' : 'text-on-surface'}`}>Cameras</span>
             </div>
           </div>
         </section>
+
+        {categoryName && (
+          <div className="flex items-center justify-between bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[#c7e74c] bg-surface-container p-2 rounded-xl">
+                {categoryName.toLowerCase() === 'phones' ? 'smartphone' :
+                 categoryName.toLowerCase() === 'consoles' ? 'videogame_asset' :
+                 categoryName.toLowerCase() === 'laptops' ? 'laptop_mac' :
+                 categoryName.toLowerCase() === 'cameras' ? 'photo_camera' : 'grid_view'}
+              </span>
+              <div>
+                <span className="text-xs text-secondary uppercase tracking-wider font-semibold">Category Filter</span>
+                <h3 className="font-bold text-lg text-on-surface capitalize">{categoryName}</h3>
+              </div>
+            </div>
+            <button 
+              onClick={() => navigate('/')} 
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-container text-on-primary-container font-semibold rounded-xl hover:opacity-90 active:scale-95 transition-all text-xs"
+            >
+              <span className="material-symbols-outlined text-[14px]">close</span>
+              Clear
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="bg-error-container/10 border border-error-container/20 rounded-xl p-4 text-error text-sm mb-10">
@@ -119,12 +200,12 @@ export default function ProductGallery() {
           <div className="flex gap-gutter-grid overflow-x-auto pb-4 -mx-margin-page px-margin-page snap-x">
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-            ) : filtered.length === 0 ? (
+            ) : singleProducts.length === 0 ? (
               <div className="text-center py-10 w-full">
-                <p className="text-secondary font-medium">No products found</p>
+                <p className="text-secondary font-medium">No single items found</p>
               </div>
             ) : (
-              filtered.map((product) => (
+              singleProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))
             )}
@@ -144,13 +225,12 @@ export default function ProductGallery() {
           <div className="flex gap-gutter-grid overflow-x-auto pb-4 -mx-margin-page px-margin-page snap-x">
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-            ) : filtered.length === 0 ? (
+            ) : comboProducts.length === 0 ? (
               <div className="text-center py-10 w-full">
-                <p className="text-secondary font-medium">No products found</p>
+                <p className="text-secondary font-medium">No combos found</p>
               </div>
             ) : (
-              // Reversing to make it look a bit different
-              [...filtered].reverse().map((product) => (
+              comboProducts.map((product) => (
                 <ProductCard key={`combo-${product.id}`} product={product} />
               ))
             )}
