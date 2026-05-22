@@ -18,43 +18,49 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ error: 'Image file is required' });
     }
 
-    // Upload image to Cloudinary using a stream
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'cruzaro_products' },
-      async (error, result) => {
-        if (error) {
-          console.error('Cloudinary upload error:', error);
-          return res.status(500).json({ error: 'Failed to upload image' });
+    // Upload image to Cloudinary using a Promise
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'cruzaro_products' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
         }
+      );
+      uploadStream.end(req.file.buffer);
+    });
 
-        try {
-          // Generate unique code
-          const unique_code = generateCode();
+    let result;
+    try {
+      result = await uploadPromise;
+    } catch (uploadError) {
+      console.error('Cloudinary upload error:', uploadError);
+      return res.status(500).json({ error: 'Failed to upload image' });
+    }
 
-          // Save product to database
-          const product = await prisma.product.create({
-            data: {
-              name,
-              description,
-              price: parseFloat(price),
-              unique_code,
-              status: status || 'ACTIVE',
-              type: type || 'SINGLE',
-              category: category || null,
-              image_url: result.secure_url,
-            },
-          });
+    try {
+      // Generate unique code
+      const unique_code = generateCode();
 
-          return res.status(201).json(product);
-        } catch (dbError) {
-          console.error('Database error creating product:', dbError);
-          return res.status(500).json({ error: 'Failed to save product to database' });
-        }
-      }
-    );
+      // Save product to database
+      const product = await prisma.product.create({
+        data: {
+          name,
+          description,
+          price: parseFloat(price),
+          unique_code,
+          status: status || 'ACTIVE',
+          type: type || 'SINGLE',
+          category: category || null,
+          image_url: result.secure_url,
+        },
+      });
 
-    // Write file buffer to stream
-    uploadStream.end(req.file.buffer);
+      return res.status(201).json(product);
+    } catch (dbError) {
+      console.error('Database error creating product:', dbError);
+      return res.status(500).json({ error: 'Failed to save product to database' });
+    }
 
   } catch (error) {
     console.error('Error in createProduct:', error);
