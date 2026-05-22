@@ -4,7 +4,7 @@ import cloudinary from '../utils/cloudinary.js';
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, status, type, category } = req.body;
+    const { name, description, price, status, type, category, stock } = req.body;
 
     if (!name || !description || !price) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -42,6 +42,7 @@ export const createProduct = async (req, res) => {
               type: type || 'SINGLE',
               category: category || null,
               image_url: result.secure_url,
+              stock: parseInt(stock, 10) || 0,
             },
           });
 
@@ -94,7 +95,7 @@ export const updateProductStatus = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, status, type, category } = req.body;
+    const { name, description, price, status, type, category, stock } = req.body;
 
     const productId = parseInt(id, 10);
     if (isNaN(productId)) {
@@ -112,6 +113,7 @@ export const updateProduct = async (req, res) => {
     if (status) data.status = status;
     if (type) data.type = type;
     if (category !== undefined) data.category = category;
+    if (stock !== undefined) data.stock = parseInt(stock, 10) || 0;
 
     let updateData = { ...data };
 

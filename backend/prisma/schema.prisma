@@ -27,45 +27,50 @@ enum ProductType {
 }
 
 model User {
-  id       Int      @id @default(autoincrement())
-  email    String   @unique
-  password String
-  role     Role
-  status   Status
-  orders   Order[]
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  role       Role
+  status     Status
+  created_at DateTime @default(now())
+  orders     Order[]
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String
   price       Float
-  unique_code String   @unique
+  unique_code String      @unique
   status      Status
   type        ProductType @default(SINGLE)
   category    String?
   image_url   String
+  stock       Int         @default(10)
+  created_at  DateTime    @default(now())
   order_items OrderItem[]
 }
 
 model Order {
-  id              Int      @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   user_id         Int
-  user            User     @relation(fields: [user_id], references: [id])
+  user            User        @relation(fields: [user_id], references: [id])
   total_price     Float
   status          String
   pickup_region   String?
   pickup_district String?
   pickup_city     String?
+  created_at      DateTime    @default(now())
   items           OrderItem[]
 }
 
 model OrderItem {
-  id         Int     @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   order_id   Int
-  order      Order   @relation(fields: [order_id], references: [id])
+  order      Order    @relation(fields: [order_id], references: [id])
   product_id Int
-  product    Product @relation(fields: [product_id], references: [id])
+  product    Product  @relation(fields: [product_id], references: [id])
   quantity   Int
   price      Float
+  created_at DateTime @default(now())
 }
