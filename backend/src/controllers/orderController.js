@@ -19,9 +19,7 @@ export const createOrder = async (req, res) => {
 
     // Fetch products from database to get real prices and verify status
     const dbProducts = await prisma.product.findMany({
-      where: {
-        id: { in: productIds }
-      }
+      where: { id: { in: productIds } }
     });
 
     // Create a lookup map
@@ -49,11 +47,7 @@ export const createOrder = async (req, res) => {
       const price = dbProduct.price;
       totalPrice += price * qty;
 
-      validatedItems.push({
-        product_id: dbProduct.id,
-        quantity: qty,
-        price: price
-      });
+      validatedItems.push({ product_id: dbProduct.id, quantity: qty, price });
     }
 
     // Validate installment payment amount
@@ -67,7 +61,6 @@ export const createOrder = async (req, res) => {
 
     // Execute within a database transaction
     const order = await prisma.$transaction(async (tx) => {
-      // 1. Create the main order
       const newOrder = await tx.order.create({
         data: {
           user_id: userId,
@@ -80,7 +73,6 @@ export const createOrder = async (req, res) => {
         }
       });
 
-      // 2. Create the order items
       await tx.orderItem.createMany({
         data: validatedItems.map(item => ({
           order_id: newOrder.id,
@@ -95,13 +87,7 @@ export const createOrder = async (req, res) => {
         include: {
           items: {
             include: {
-              product: {
-                select: {
-                  name: true,
-                  image_url: true,
-                  unique_code: true
-                }
-              }
+              product: { select: { name: true, image_url: true, unique_code: true } }
             }
           }
         }
@@ -127,13 +113,7 @@ export const getMyOrders = async (req, res) => {
       include: {
         items: {
           include: {
-            product: {
-              select: {
-                name: true,
-                image_url: true,
-                unique_code: true
-              }
-            }
+            product: { select: { name: true, image_url: true, unique_code: true } }
           }
         }
       },
@@ -143,6 +123,64 @@ export const getMyOrders = async (req, res) => {
     return res.json(orders);
   } catch (error) {
     console.error('Error fetching my orders:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/orders/:id/pay
+ * Adds an installment payment to an existing order.
+ * The extra amount is added to amount_paid, capped at total_price.
+ * Only the order's owner can make this payment.
+ */
+export const payOrderBalance = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = parseInt(req.params.id, 10);
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: 'Invalid order ID' });
+    }
+
+    const { amount } = req.body;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Payment amount must be greater than zero' });
+    }
+
+    // Fetch the order and verify ownership
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (order.user_id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const outstanding = order.total_price - order.amount_paid;
+    if (outstanding <= 0) {
+      return res.status(400).json({ error: 'This order has already been paid in full' });
+    }
+    if (parsedAmount > outstanding) {
+      return res
+        .status(400)
+        .json({ error: `Amount exceeds the outstanding balance of GH₵ ${outstanding.toFixed(2)}` });
+    }
+
+    const updated = await prisma.order.update({
+      where: { id: orderId },
+      data: { amount_paid: order.amount_paid + parsedAmount },
+      include: {
+        items: {
+          include: {
+            product: { select: { name: true, image_url: true, unique_code: true } }
+          }
+        }
+      }
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Error processing balance payment:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
