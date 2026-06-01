@@ -26,6 +26,21 @@ enum ProductType {
   COMBO
 }
 
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}
+
+enum CancellationStatus {
+  NONE
+  REQUESTED
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   email      String   @unique
@@ -49,20 +64,29 @@ model Product {
   stock       Int         @default(10)
   created_at  DateTime    @default(now())
   order_items OrderItem[]
+  paymentRule ProductPaymentRule?
 }
 
 model Order {
-  id              Int         @id @default(autoincrement())
-  user_id         Int
-  user            User        @relation(fields: [user_id], references: [id])
-  total_price     Float
-  amount_paid     Float       @default(0)
-  status          String
-  pickup_region   String?
-  pickup_district String?
-  pickup_city     String?
-  created_at      DateTime    @default(now())
-  items           OrderItem[]
+  id                 Int                  @id @default(autoincrement())
+  user_id            Int
+  user               User                 @relation(fields: [user_id], references: [id])
+  total_price        Float
+  amount_paid        Float                @default(0)
+  penalty_amount     Float                @default(0)
+  penalty_pct        Float?
+  penalty_applied    Boolean              @default(false)
+  payment_status     PaymentStatus        @default(PENDING)
+  payment_due_date   DateTime?
+  cancellation_status CancellationStatus  @default(NONE)
+  status             String
+  pickup_region      String?
+  pickup_district    String?
+  pickup_city        String?
+  created_at         DateTime             @default(now())
+  items              OrderItem[]
+  transactions       PaymentTransaction[]
+  cancellation       CancellationRequest?
 }
 
 model OrderItem {
@@ -75,3 +99,71 @@ model OrderItem {
   price      Float
   created_at DateTime @default(now())
 }
+
+// Every payment event against an order
+model PaymentTransaction {
+  id             Int      @id @default(autoincrement())
+  order_id       Int
+  order          Order    @relation(fields: [order_id], references: [id])
+  amount         Float
+  payment_method String   @default("MANUAL")
+  reference      String?
+  note           String?
+  created_at     DateTime @default(now())
+}
+
+// Cancellation / refund requests
+model CancellationRequest {
+  id                  Int                @id @default(autoincrement())
+  order_id            Int                @unique
+  order               Order              @relation(fields: [order_id], references: [id])
+  requested_by        Int
+  reason              String
+  cancellation_fee_pct Float
+  refund_amount       Float
+  status              CancellationStatus @default(REQUESTED)
+  admin_note          String?
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+}
+
+// Global admin-configurable payment defaults (singleton — one row)
+model PaymentRule {
+  id                     Int      @id @default(autoincrement())
+  default_deadline_days  Int      @default(14)
+  default_penalty_pct    Float    @default(10)
+  grace_period_days      Int      @default(3)
+  default_cancel_fee_pct Float    @default(15)
+  enable_recurring       Boolean  @default(false)
+  penalty_frequency      String   @default("monthly")
+  max_refund_days        Int      @default(30)
+  updated_at             DateTime @updatedAt
+}
+
+// Immutable audit trail
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?
+  action     String
+  entity     String
+  entity_id  Int?
+  old_value  String?
+  new_value  String?
+  ip_address String?
+  created_at DateTime @default(now())
+}
+
+// Per-product payment rule overrides (all fields optional — null means use global default)
+model ProductPaymentRule {
+  id                     Int      @id @default(autoincrement())
+  product_id             Int      @unique
+  product                Product  @relation(fields: [product_id], references: [id])
+  deadline_days          Int?
+  penalty_pct            Float?
+  grace_period_days      Int?
+  cancel_fee_pct         Float?
+  enable_recurring       Boolean?
+  penalty_frequency      String?
+  updated_at             DateTime @updatedAt
+}
+

@@ -146,6 +146,33 @@ function OrderCard({ order, onPaymentSuccess }) {
   const [payError, setPayError] = useState('');
   const [paySuccess, setPaySuccess] = useState(false);
 
+  // Cancellation
+  const cancelStatus = order.cancellation_status ?? order.cancellation?.status ?? 'NONE';
+  const canCancel = ['PENDING', 'PARTIALLY_PAID'].includes(order.payment_status ?? '') &&
+    !['SHIPPED','DELIVERED','CANCELLED'].includes(order.status) &&
+    cancelStatus === 'NONE';
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const [cancelSuccess, setCancelSuccess] = useState(false);
+
+  const handleRequestCancel = async () => {
+    if (!cancelReason.trim()) { setCancelError('Please provide a reason.'); return; }
+    setCancelling(true); setCancelError('');
+    try {
+      await api.post(`/orders/${order.id}/cancel`, { reason: cancelReason });
+      setCancelSuccess(true);
+      setTimeout(() => { setCancelOpen(false); setCancelSuccess(false); setCancelReason(''); }, 2000);
+      // Reload orders on parent
+      onPaymentSuccess({ ...order, cancellation_status: 'REQUESTED' });
+    } catch (err) {
+      setCancelError(err.response?.data?.error || 'Cancellation request failed.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleOpenPay = () => {
     setPayAmount(outstanding.toFixed(2));
     setPayError('');
@@ -357,6 +384,71 @@ function OrderCard({ order, onPaymentSuccess }) {
           )}
         </div>
       )}
+
+      {/* ── Cancellation Section ── */}
+      <div className="border-t border-slate-800/60 pt-3">
+        {cancelStatus !== 'NONE' ? (
+          <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border ${
+            cancelStatus === 'REQUESTED' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+            cancelStatus === 'APPROVED'  ? 'bg-blue-500/10  text-blue-400  border-blue-500/20'  :
+            cancelStatus === 'REJECTED'  ? 'bg-rose-500/10  text-rose-400  border-rose-500/20'  :
+            cancelStatus === 'REFUNDED'  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+            'bg-slate-800 text-slate-400 border-slate-700'
+          }`}>
+            <span className="material-symbols-outlined text-[16px]">cancel</span>
+            Cancellation {cancelStatus.toLowerCase().replace('_',' ')}
+            {order.cancellation?.refund_amount && cancelStatus === 'APPROVED' && (
+              <span className="ml-auto text-emerald-400">
+                Refund: GH₵ {order.cancellation.refund_amount.toFixed(2)}
+              </span>
+            )}
+          </div>
+        ) : canCancel ? (
+          !cancelOpen ? (
+            <button
+              onClick={() => { setCancelOpen(true); setCancelError(''); }}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 hover:text-rose-400 border border-dashed border-slate-700 hover:border-rose-500/40 rounded-xl transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">cancel</span>
+              Request Cancellation
+            </button>
+          ) : (
+            <div className="bg-slate-800/60 border border-rose-500/20 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-rose-400">Request Cancellation</p>
+                <button onClick={() => { setCancelOpen(false); setCancelError(''); }} className="text-slate-500 hover:text-slate-300">
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+              {cancelSuccess ? (
+                <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                  <span className="material-symbols-outlined">check_circle</span>
+                  Cancellation request submitted!
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-400">A {order.cancellation?.cancellation_fee_pct ?? ''}% cancellation fee may be deducted from your refund. Admin will review and approve.</p>
+                  {cancelError && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cancelError}</p>}
+                  <textarea
+                    rows={3}
+                    value={cancelReason}
+                    onChange={e => { setCancelReason(e.target.value); setCancelError(''); }}
+                    placeholder="Reason for cancellation…"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:outline-none focus:border-rose-500 resize-none"
+                  />
+                  <button
+                    onClick={handleRequestCancel}
+                    disabled={cancelling || !cancelReason.trim()}
+                    className="w-full py-2.5 bg-rose-600/80 hover:bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition active:scale-[0.98]"
+                  >
+                    {cancelling ? 'Submitting…' : 'Submit Cancellation Request'}
+                  </button>
+                </>
+              )}
+            </div>
+          )
+        ) : null}
+      </div>
     </div>
   );
 }
