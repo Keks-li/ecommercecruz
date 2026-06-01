@@ -60,55 +60,71 @@ export default function OrdersTab() {
                 <th className="px-6 py-4 font-semibold">Order ID</th>
                 <th className="px-6 py-4 font-semibold">Customer</th>
                 <th className="px-6 py-4 font-semibold">Items Bought</th>
-                <th className="px-6 py-4 font-semibold">Amount Paid</th>
+                <th className="px-6 py-4 font-semibold">Order Total</th>
+                <th className="px-6 py-4 font-semibold">Paid</th>
+                <th className="px-6 py-4 font-semibold">Balance</th>
                 <th className="px-6 py-4 font-semibold text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50 text-slate-300">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-slate-500">
                     No orders found.
                   </td>
                 </tr>
               ) : (
-                orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 font-mono">#{order.id}</td>
-                    <td className="px-6 py-4">{order.user?.email || 'Unknown'}</td>
-                    <td className="px-6 py-4">
-                      {order.items && order.items.length > 0 ? (
-                        <ul className="list-disc pl-4 space-y-1 text-xs">
-                          {order.items.map((item) => (
-                            <li key={item.id}>
-                              <span className="text-slate-200">{item.product?.name || 'Unknown Product'}</span>
-                              <span className="text-slate-500 ml-2">x{item.quantity}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-slate-500 italic">No items</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-indigo-400">
-                      ₦{Number(order.total_price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className={`bg-slate-800 border text-xs font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-colors
-                          ${order.status === 'PENDING' ? 'border-amber-500/50 text-amber-400' :
-                            order.status === 'SHIPPED' ? 'border-blue-500/50 text-blue-400' :
-                              'border-emerald-500/50 text-emerald-400'}`}
-                      >
-                        <option value="PENDING">Pending</option>
-                        <option value="SHIPPED">Shipped</option>
-                        <option value="DELIVERED">Delivered</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))
+                orders.map((order) => {
+                  const amountPaid = order.amount_paid ?? 0;
+                  const outstanding = Math.max(0, order.total_price - amountPaid);
+                  return (
+                    <tr key={order.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-6 py-4 font-mono">#{order.id}</td>
+                      <td className="px-6 py-4">{order.user?.email || 'Unknown'}</td>
+                      <td className="px-6 py-4">
+                        {order.items && order.items.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1 text-xs">
+                            {order.items.map((item) => (
+                              <li key={item.id}>
+                                <span className="text-slate-200">{item.product?.name || 'Unknown Product'}</span>
+                                <span className="text-slate-500 ml-2">x{item.quantity}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-slate-500 italic">No items</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-300">
+                        GH₵ {Number(order.total_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-[#c7e74c]">
+                        GH₵ {amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4 font-semibold">
+                        {outstanding > 0 ? (
+                          <span className="text-amber-400">GH₵ {outstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        ) : (
+                          <span className="text-emerald-400">Paid in full</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <select
+                          value={order.status}
+                          onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                          className={`bg-slate-800 border text-xs font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-colors
+                            ${order.status === 'PENDING' ? 'border-amber-500/50 text-amber-400' :
+                              order.status === 'SHIPPED' ? 'border-blue-500/50 text-blue-400' :
+                                'border-emerald-500/50 text-emerald-400'}`}
+                        >
+                          <option value="PENDING">Pending</option>
+                          <option value="SHIPPED">Shipped</option>
+                          <option value="DELIVERED">Delivered</option>
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

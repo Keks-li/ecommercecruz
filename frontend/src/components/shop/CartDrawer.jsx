@@ -90,10 +90,11 @@ export default function CartDrawer({ open, onClose }) {
   const [checkoutError, setCheckoutError] = useState('');
 
   // Step and location states
-  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart' | 'address'
+  const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart' | 'address' | 'payment'
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [city, setCity] = useState('');
+  const [amountToPay, setAmountToPay] = useState('');
 
   // Validate cart every time the drawer opens; reset states when closed
   useEffect(() => {
@@ -107,6 +108,7 @@ export default function CartDrawer({ open, onClose }) {
       setSelectedRegion('');
       setSelectedDistrict('');
       setCity('');
+      setAmountToPay('');
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -136,9 +138,25 @@ export default function CartDrawer({ open, onClose }) {
     setCheckoutStep('address');
   };
 
-  const handlePlaceOrder = async () => {
+  const handleProceedToPayment = () => {
     if (!selectedRegion || !selectedDistrict || !city.trim()) {
       setCheckoutError('Please fill out all delivery details.');
+      return;
+    }
+    setCheckoutError('');
+    // Pre-fill amount with full total so user can adjust down
+    setAmountToPay(totalPrice.toFixed(2));
+    setCheckoutStep('payment');
+  };
+
+  const handlePlaceOrder = async () => {
+    const numAmount = parseFloat(amountToPay);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setCheckoutError('Please enter a valid payment amount.');
+      return;
+    }
+    if (numAmount > totalPrice) {
+      setCheckoutError('Payment amount cannot exceed the order total.');
       return;
     }
 
@@ -154,7 +172,8 @@ export default function CartDrawer({ open, onClose }) {
         items: orderItems,
         pickup_region: selectedRegion,
         pickup_district: selectedDistrict,
-        pickup_city: city.trim()
+        pickup_city: city.trim(),
+        amount_paid: numAmount
       });
 
       clearCart();
@@ -381,14 +400,112 @@ export default function CartDrawer({ open, onClose }) {
               <div className="flex justify-between items-center text-sm">
                 <span className="text-on-surface-variant font-medium">Order Total</span>
                 <span className="text-on-background font-bold text-lg">
-                  ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  GH₵ {totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
               <button
+                id="proceed-to-payment-btn"
+                onClick={handleProceedToPayment}
+                disabled={!selectedRegion || !selectedDistrict || !city.trim()}
+                className="w-full bg-[#c7e74c] hover:bg-[#b5d342] disabled:opacity-55 disabled:cursor-not-allowed text-black font-bold py-3.5
+                  rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+              >
+                Continue to Payment
+              </button>
+            </div>
+          </div>
+        ) : checkoutStep === 'payment' ? (
+          /* ── Installment Payment Step ── */
+          <div className="flex-1 flex flex-col justify-between p-6">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCheckoutStep('address')}
+                  className="p-1 rounded-lg text-on-surface-variant hover:text-on-background hover:bg-surface-container-highest transition"
+                >
+                  <span className="material-symbols-outlined text-[20px] font-bold">arrow_back</span>
+                </button>
+                <div>
+                  <h3 className="text-on-background font-bold text-lg">Payment</h3>
+                  <p className="text-on-surface-variant text-xs mt-0.5">Enter the amount you're paying now</p>
+                </div>
+              </div>
+
+              {checkoutError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-xs">
+                  {checkoutError}
+                </div>
+              )}
+
+              {/* Order Total Summary */}
+              <div className="bg-surface-container-low border border-outline-variant/40 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-on-surface-variant">Order Total</span>
+                  <span className="text-on-background font-bold">GH₵ {totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < totalPrice && (
+                  <div className="flex justify-between items-center text-sm border-t border-outline-variant/30 pt-2">
+                    <span className="text-on-surface-variant">Balance Remaining</span>
+                    <span className="text-amber-400 font-bold">
+                      GH₵ {(totalPrice - parseFloat(amountToPay)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Amount Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-on-surface-variant" htmlFor="payment-amount-input">
+                  Amount Paying Now (GH₵)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm font-bold">GH₵</span>
+                  <input
+                    id="payment-amount-input"
+                    type="number"
+                    min="0.01"
+                    max={totalPrice}
+                    step="0.01"
+                    value={amountToPay}
+                    onChange={(e) => setAmountToPay(e.target.value)}
+                    className="block w-full pl-12 pr-4 py-3.5 bg-surface-container-low border border-outline-variant rounded-xl text-on-surface text-sm font-semibold focus:outline-none focus:border-indigo-500 transition-colors"
+                    placeholder={totalPrice.toFixed(2)}
+                  />
+                </div>
+                {/* Quick-fill buttons */}
+                <div className="flex gap-2 pt-1">
+                  {[25, 50, 75, 100].map(pct => {
+                    const val = (totalPrice * pct / 100);
+                    return (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => setAmountToPay(val.toFixed(2))}
+                        className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-surface-container border border-outline-variant text-on-surface-variant hover:border-indigo-500 hover:text-indigo-400 transition"
+                      >
+                        {pct}%
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Installment Notice */}
+              <div className="flex items-start gap-2 bg-indigo-500/5 p-3.5 rounded-xl border border-indigo-500/20">
+                <span className="material-symbols-outlined text-[16px] text-indigo-400 mt-0.5">payments</span>
+                <p className="text-xs text-indigo-300 leading-relaxed">
+                  <span className="font-bold">Installment Payment:</span> You can pay any amount now and settle the remaining balance later. The full order total is GH₵ {totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-outline-variant pt-5 space-y-3">
+              <button
                 id="place-order-btn"
                 onClick={handlePlaceOrder}
-                disabled={checkoutLoading || !selectedRegion || !selectedDistrict || !city.trim()}
+                disabled={checkoutLoading || !amountToPay || parseFloat(amountToPay) <= 0}
                 className="w-full bg-[#c7e74c] hover:bg-[#b5d342] disabled:opacity-55 disabled:cursor-not-allowed text-black font-bold py-3.5
                   rounded-xl transition-all duration-200 shadow-lg active:scale-[0.98] text-sm flex items-center justify-center gap-2"
               >
@@ -398,10 +515,10 @@ export default function CartDrawer({ open, onClose }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
-                    Placing Order...
+                    Processing...
                   </>
                 ) : (
-                  'Place Secure Order'
+                  `Pay GH₵ ${parseFloat(amountToPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} & Place Order`
                 )}
               </button>
             </div>

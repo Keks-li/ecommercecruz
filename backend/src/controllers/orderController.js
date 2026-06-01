@@ -7,7 +7,7 @@ import prisma from '../utils/prisma.js';
  */
 export const createOrder = async (req, res) => {
   try {
-    const { items, pickup_region, pickup_district, pickup_city } = req.body;
+    const { items, pickup_region, pickup_district, pickup_city, amount_paid } = req.body;
     const userId = req.user.id;
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -56,6 +56,15 @@ export const createOrder = async (req, res) => {
       });
     }
 
+    // Validate installment payment amount
+    const parsedAmountPaid = parseFloat(amount_paid);
+    if (isNaN(parsedAmountPaid) || parsedAmountPaid <= 0) {
+      return res.status(400).json({ error: 'Payment amount must be greater than zero' });
+    }
+    if (parsedAmountPaid > totalPrice) {
+      return res.status(400).json({ error: 'Payment amount cannot exceed the order total' });
+    }
+
     // Execute within a database transaction
     const order = await prisma.$transaction(async (tx) => {
       // 1. Create the main order
@@ -63,6 +72,7 @@ export const createOrder = async (req, res) => {
         data: {
           user_id: userId,
           total_price: totalPrice,
+          amount_paid: parsedAmountPaid,
           status: 'PENDING',
           pickup_region,
           pickup_district,

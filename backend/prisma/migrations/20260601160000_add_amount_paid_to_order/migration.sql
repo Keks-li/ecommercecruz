@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN "amount_paid" DOUBLE PRECISION NOT NULL DEFAULT 0;

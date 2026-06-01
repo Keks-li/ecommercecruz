@@ -160,11 +160,27 @@ export default function CustomerProfile() {
                   </div>
 
                   {/* Order Footer */}
-                  <div className="flex justify-between items-center pt-3 border-t border-slate-800/60 text-sm">
-                    <span className="text-slate-500">Total Price</span>
-                    <span className="text-[#c7e74c] font-extrabold text-base">
-                      ${order.total_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </span>
+                  <div className="pt-3 border-t border-slate-800/60 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Order Total</span>
+                      <span className="text-white font-bold">
+                        GH₵ {order.total_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Amount Paid</span>
+                      <span className="text-[#c7e74c] font-extrabold">
+                        GH₵ {(order.amount_paid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {(order.amount_paid ?? 0) < order.total_price && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-amber-400/80">Outstanding Balance</span>
+                        <span className="text-amber-400 font-extrabold">
+                          GH₵ {(order.total_price - (order.amount_paid ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
