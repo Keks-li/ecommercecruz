@@ -43,7 +43,9 @@ export const createProduct = async (req, res) => {
               category: category || null,
               image_url: result.secure_url,
               stock: parseInt(stock, 10) || 0,
+              payment_rule_id: req.body.payment_rule_id ? parseInt(req.body.payment_rule_id, 10) : null,
             },
+            include: { payment_rule: true },
           });
 
           return res.status(201).json(product);
@@ -114,6 +116,9 @@ export const updateProduct = async (req, res) => {
     if (type) data.type = type;
     if (category !== undefined) data.category = category;
     if (stock !== undefined) data.stock = parseInt(stock, 10) || 0;
+    if (req.body.payment_rule_id !== undefined) {
+      data.payment_rule_id = req.body.payment_rule_id ? parseInt(req.body.payment_rule_id, 10) : null;
+    }
 
     let updateData = { ...data };
 
@@ -137,6 +142,7 @@ export const updateProduct = async (req, res) => {
     const product = await prisma.product.update({
       where: { id: productId },
       data: updateData,
+      include: { payment_rule: true },
     });
 
     return res.status(200).json(product);
@@ -152,6 +158,7 @@ export const updateProduct = async (req, res) => {
 export const getAllProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
+      include: { payment_rule: true },
       orderBy: { id: 'desc' },
     });
     res.json(products);

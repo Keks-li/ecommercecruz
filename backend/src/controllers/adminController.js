@@ -2,24 +2,45 @@ import prisma from '../utils/prisma.js';
 
 export const getStats = async (req, res) => {
   try {
+    const { date } = req.query;
+    let dateFilter = {};
+    let userDateFilter = {};
+    let orderItemFilter = {};
+
+    if (date) {
+      // Parse target date and set local start/end times
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      dateFilter = { created_at: { gte: startOfDay, lte: endOfDay } };
+      userDateFilter = { created_at: { gte: startOfDay, lte: endOfDay } };
+      orderItemFilter = { order: { created_at: { gte: startOfDay, lte: endOfDay } } };
+    }
+
     // 1. Core counters
     const totalActiveUsers = await prisma.user.count({
-      where: { role: 'CUSTOMER', status: 'ACTIVE' },
+      where: { role: 'CUSTOMER', status: 'ACTIVE', ...userDateFilter },
     });
 
     const totalCustomers = await prisma.user.count({
-      where: { role: 'CUSTOMER' },
+      where: { role: 'CUSTOMER', ...userDateFilter },
     });
 
-    const totalOrders = await prisma.order.count();
+    const totalOrders = await prisma.order.count({
+      where: { ...dateFilter },
+    });
 
     const revenueResult = await prisma.order.aggregate({
+      where: { ...dateFilter },
       _sum: { total_price: true },
     });
     const totalRevenue = revenueResult._sum.total_price || 0;
 
     const pendingOrders = await prisma.order.count({
-      where: { status: 'PENDING' },
+      where: { status: 'PENDING', ...dateFilter },
     });
 
     const lowStockProductsCount = await prisma.product.count({
@@ -38,43 +59,9 @@ export const getStats = async (req, res) => {
       },
     });
 
-    // 2. Temporal sales (Today, Week, Month)
-    const now = new Date();
-    
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(startOfWeek.getDate() - 7);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const startOfMonth = new Date(now);
-    startOfMonth.setDate(startOfMonth.getDate() - 30);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    // Today
-    const todayOrders = await prisma.order.findMany({
-      where: { created_at: { gte: startOfToday } },
-    });
-    const salesTodayCount = todayOrders.length;
-    const salesTodayRevenue = todayOrders.reduce((sum, o) => sum + o.total_price, 0);
-
-    // Week (last 7 days)
-    const weekOrders = await prisma.order.findMany({
-      where: { created_at: { gte: startOfWeek } },
-    });
-    const salesWeekCount = weekOrders.length;
-    const salesWeekRevenue = weekOrders.reduce((sum, o) => sum + o.total_price, 0);
-
-    // Month (last 30 days)
-    const monthOrders = await prisma.order.findMany({
-      where: { created_at: { gte: startOfMonth } },
-    });
-    const salesMonthCount = monthOrders.length;
-    const salesMonthRevenue = monthOrders.reduce((sum, o) => sum + o.total_price, 0);
-
-    // 3. Recent orders feed (take 5)
+    // 2. Recent orders feed (take 5)
     const recentOrders = await prisma.order.findMany({
+      where: { ...dateFilter },
       take: 5,
       orderBy: { id: 'desc' },
       include: {
@@ -105,8 +92,9 @@ export const getStats = async (req, res) => {
       }))
     }));
 
-    // 4. Top selling products (take 5)
+    // 3. Top selling products (take 5)
     const orderItems = await prisma.orderItem.findMany({
+      where: { ...orderItemFilter },
       include: { product: true }
     });
     const productSales = {};
@@ -133,51 +121,6 @@ export const getStats = async (req, res) => {
       .sort((a, b) => b.quantitySold - a.quantitySold)
       .slice(0, 5);
 
-    // 5. Chart Data (Daily / Weekly / Monthly)
-    const allOrders = await prisma.order.findMany({
-      orderBy: { created_at: 'asc' }
-    });
-
-    const dailyChart = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const start = new Date(d); start.setHours(0, 0, 0, 0);
-      const end = new Date(d); end.setHours(23, 59, 59, 999);
-      
-      const dayOrders = allOrders.filter(o => o.created_at >= start && o.created_at <= end);
-      const revenue = dayOrders.reduce((sum, o) => sum + o.total_price, 0);
-      dailyChart.push({ label, sales: dayOrders.length, revenue });
-    }
-
-    const weeklyChart = [];
-    for (let i = 3; i >= 0; i--) {
-      const start = new Date(); start.setDate(start.getDate() - (i + 1) * 7); start.setHours(0, 0, 0, 0);
-      const end = new Date(); end.setDate(end.getDate() - i * 7); end.setHours(23, 59, 59, 999);
-      const label = i === 0 ? 'This Week' : `${i} Wk Ago`;
-      
-      const weekOrders = allOrders.filter(o => o.created_at >= start && o.created_at <= end);
-      const revenue = weekOrders.reduce((sum, o) => sum + o.total_price, 0);
-      weeklyChart.push({ label, sales: weekOrders.length, revenue });
-    }
-
-    const monthlyChart = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const label = d.toLocaleDateString('en-US', { month: 'short' });
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      
-      const monthOrders = allOrders.filter(o => {
-        const od = new Date(o.created_at);
-        return od.getMonth() === m && od.getFullYear() === y;
-      });
-      const revenue = monthOrders.reduce((sum, o) => sum + o.total_price, 0);
-      monthlyChart.push({ label, sales: monthOrders.length, revenue });
-    }
-
     res.json({
       totalRevenue,
       totalOrders,
@@ -186,19 +129,8 @@ export const getStats = async (req, res) => {
       pendingOrders,
       lowStockProductsCount,
       lowStockProductsList,
-      salesTodayCount,
-      salesTodayRevenue,
-      salesWeekCount,
-      salesWeekRevenue,
-      salesMonthCount,
-      salesMonthRevenue,
       recentOrders: formattedRecentOrders,
       topSellingProducts,
-      charts: {
-        daily: dailyChart,
-        weekly: weeklyChart,
-        monthly: monthlyChart
-      }
     });
   } catch (error) {
     console.error('Error fetching admin stats:', error);

@@ -26,6 +26,10 @@ export default function OverdueTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
 
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
   // Expanded order id for history modal
   const [historyOrderId, setHistoryOrderId] = useState(null);
   const [historyData, setHistoryData]       = useState(null);
@@ -88,7 +92,34 @@ export default function OverdueTab() {
     } catch { setHistoryData(null); }
   };
 
-  if (loading) return <div className="space-y-3 animate-pulse">{[1,2,3].map(i => <div key={i} className="h-20 bg-slate-800 rounded-2xl"/>)}</div>;
+  // Perform filtering
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch = 
+      String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.payment_status || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    let matchesDate = true;
+    if (filterDate) {
+      if (!order.payment_due_date) {
+        matchesDate = false;
+      } else {
+        const dueDate = new Date(order.payment_due_date).toISOString().split('T')[0];
+        matchesDate = dueDate === filterDate;
+      }
+    }
+
+    return matchesSearch && matchesDate;
+  });
+
+  if (loading) return (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-10 w-48 bg-slate-800 rounded-lg"></div>
+      <div className="h-10 bg-slate-800 rounded-xl"></div>
+      {[1,2,3].map(i => <div key={i} className="h-20 bg-slate-800 rounded-2xl"/>)}
+    </div>
+  );
+
   if (error) return <div className="text-rose-400 bg-rose-500/10 p-4 rounded-xl border border-rose-500/30">{error}</div>;
 
   return (
@@ -101,15 +132,53 @@ export default function OverdueTab() {
         {actionMsg && <div className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm rounded-xl">{actionMsg}</div>}
       </div>
 
-      {orders.length === 0 && (
-        <div className="text-center py-16 text-slate-500">
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by Order ID, customer, or payment status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+          />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-2">
+            <span className="text-slate-500 text-xs font-semibold whitespace-nowrap">Due Date:</span>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all cursor-pointer outline-none"
+            />
+          </div>
+          {filterDate && (
+            <button
+              onClick={() => setFilterDate('')}
+              className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition border border-slate-700/50"
+            >
+              Clear Date
+            </button>
+          )}
+        </div>
+      </div>
+
+      {filteredOrders.length === 0 && (
+        <div className="text-center py-16 text-slate-500 bg-slate-900/20 border border-slate-800 rounded-2xl">
           <span className="material-symbols-outlined text-5xl">check_circle</span>
-          <p className="mt-3 font-medium">No overdue orders — great work!</p>
+          <p className="mt-3 font-medium">No overdue orders matching filters.</p>
         </div>
       )}
 
       <div className="space-y-4">
-        {orders.map(order => {
+        {filteredOrders.map(order => {
           const outstanding = order.total_price + order.penalty_amount - order.amount_paid;
           const daysLate = order.payment_due_date ? -daysUntil(order.payment_due_date) : null;
           return (

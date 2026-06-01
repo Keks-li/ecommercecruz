@@ -27,6 +27,7 @@ export default function ProductsTab() {
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [currentProduct, setCurrentProduct] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [paymentRules, setPaymentRules] = useState([]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -42,8 +43,18 @@ export default function ProductsTab() {
     }
   };
 
+  const fetchRules = async () => {
+    try {
+      const { data } = await api.get('/admin/orders/payment-rules');
+      setPaymentRules(data);
+    } catch (err) {
+      console.error('Failed to load payment rules:', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchRules();
   }, []);
 
   const handleToggleStatus = async (productId, currentStatus) => {
@@ -141,6 +152,7 @@ export default function ProductsTab() {
                 <th className="px-6 py-4 font-semibold">Category</th>
                 <th className="px-6 py-4 font-semibold">Stock</th>
                 <th className="px-6 py-4 font-semibold">Price</th>
+                <th className="px-6 py-4 font-semibold">Payment Rule</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -167,6 +179,15 @@ export default function ProductsTab() {
                     </td>
                     <td className="px-6 py-4 font-semibold text-indigo-400">
                       ₦{Number(product.price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4">
+                      {product.payment_rule ? (
+                        <span className="bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 px-2.5 py-1 rounded-full text-xs font-semibold">
+                          {product.payment_rule.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 italic text-xs">Default Rule</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={product.status} />
@@ -274,6 +295,20 @@ export default function ProductsTab() {
                   className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
                   placeholder="e.g. Electronics"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Payment Rule</label>
+                <select
+                  name="payment_rule_id"
+                  defaultValue={currentProduct?.payment_rule_id || ''}
+                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+                >
+                  <option value="">Default Rule (Global default terms)</option>
+                  {paymentRules.map(rule => (
+                    <option key={rule.id} value={rule.id}>{rule.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

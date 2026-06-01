@@ -218,11 +218,14 @@ export const getOverdueOrders = async (req, res) => {
 
 export const getPaymentRules = async (req, res) => {
   try {
-    let rules = await prisma.paymentRule.findFirst();
-    if (!rules) {
-      // Create singleton if somehow missing
-      rules = await prisma.paymentRule.create({ data: {} });
-    }
+    const rules = await prisma.paymentRule.findMany({
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      },
+      orderBy: { id: 'asc' },
+    });
     return res.json(rules);
   } catch (err) {
     console.error('getPaymentRules error:', err);
@@ -230,14 +233,13 @@ export const getPaymentRules = async (req, res) => {
   }
 };
 
-// ── updatePaymentRules ────────────────────────────────────────────────────────
+// ── createPaymentRule ─────────────────────────────────────────────────────────
 
-/**
- * PUT /api/admin/payment-rules
- */
-export const updatePaymentRules = async (req, res) => {
+export const createPaymentRule = async (req, res) => {
   try {
     const {
+      name,
+      is_default,
       default_deadline_days,
       default_penalty_pct,
       grace_period_days,
@@ -247,13 +249,102 @@ export const updatePaymentRules = async (req, res) => {
       max_refund_days,
     } = req.body;
 
-    let existing = await prisma.paymentRule.findFirst();
-    const oldValue = existing ? { ...existing } : {};
+    if (!name) return res.status(400).json({ error: 'Rule name is required' });
 
-    if (existing) {
-      existing = await prisma.paymentRule.update({
-        where: { id: existing.id },
+    const setAsDefault = Boolean(is_default);
+
+    const newRule = await prisma.$transaction(async (tx) => {
+      if (setAsDefault) {
+        await tx.paymentRule.updateMany({
+          where: { is_default: true },
+          data: { is_default: false },
+        });
+      }
+
+      return tx.paymentRule.create({
         data: {
+          name,
+          is_default: setAsDefault,
+          default_deadline_days: Number(default_deadline_days) || 14,
+          default_penalty_pct: parseFloat(default_penalty_pct) || 10,
+          grace_period_days: Number(grace_period_days) || 3,
+          default_cancel_fee_pct: parseFloat(default_cancel_fee_pct) || 15,
+          enable_recurring: Boolean(enable_recurring),
+          penalty_frequency: penalty_frequency || 'monthly',
+          max_refund_days: Number(max_refund_days) || 30,
+        },
+      });
+    });
+
+    await audit({
+      userId: req.user.id,
+      action: 'PAYMENT_RULE_CREATED',
+      entity: 'PaymentRule',
+      entityId: newRule.id,
+      newValue: newRule,
+      ip: req.ip,
+    });
+
+    return res.status(201).json(newRule);
+  } catch (err) {
+    console.error('createPaymentRule error:', err);
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: 'A payment rule with this name already exists' });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── updatePaymentRules ────────────────────────────────────────────────────────
+
+export const updatePaymentRules = async (req, res) => {
+  try {
+    const ruleId = parseInt(req.params.id, 10);
+    if (isNaN(ruleId)) {
+      // If no ID param, fall back to default rule singleton behavior
+      const defaultRule = await prisma.paymentRule.findFirst({ where: { is_default: true } });
+      if (!defaultRule) return res.status(404).json({ error: 'Default rule not found' });
+      req.params.id = defaultRule.id;
+      return updatePaymentRules(req, res);
+    }
+
+    const {
+      name,
+      is_default,
+      default_deadline_days,
+      default_penalty_pct,
+      grace_period_days,
+      default_cancel_fee_pct,
+      enable_recurring,
+      penalty_frequency,
+      max_refund_days,
+    } = req.body;
+
+    const existing = await prisma.paymentRule.findUnique({ where: { id: ruleId } });
+    if (!existing) return res.status(404).json({ error: 'Rule not found' });
+
+    const setAsDefault = Boolean(is_default);
+
+    if (existing.is_default && !setAsDefault) {
+      const defaultCount = await prisma.paymentRule.count({ where: { is_default: true } });
+      if (defaultCount <= 1) {
+        return res.status(400).json({ error: 'At least one default payment rule is required. Set another rule as default first.' });
+      }
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (setAsDefault && !existing.is_default) {
+        await tx.paymentRule.updateMany({
+          where: { is_default: true },
+          data: { is_default: false },
+        });
+      }
+
+      return tx.paymentRule.update({
+        where: { id: ruleId },
+        data: {
+          ...(name && { name }),
+          is_default: setAsDefault,
           ...(default_deadline_days != null && { default_deadline_days: Number(default_deadline_days) }),
           ...(default_penalty_pct != null && { default_penalty_pct: parseFloat(default_penalty_pct) }),
           ...(grace_period_days != null && { grace_period_days: Number(grace_period_days) }),
@@ -263,23 +354,60 @@ export const updatePaymentRules = async (req, res) => {
           ...(max_refund_days != null && { max_refund_days: Number(max_refund_days) }),
         },
       });
-    } else {
-      existing = await prisma.paymentRule.create({ data: req.body });
-    }
+    });
 
     await audit({
       userId: req.user.id,
-      action: 'PAYMENT_RULES_UPDATED',
+      action: 'PAYMENT_RULE_UPDATED',
       entity: 'PaymentRule',
-      entityId: existing.id,
-      oldValue,
-      newValue: existing,
+      entityId: ruleId,
+      oldValue: existing,
+      newValue: updated,
       ip: req.ip,
     });
 
-    return res.json(existing);
+    return res.json(updated);
   } catch (err) {
-    console.error('updatePaymentRules error:', err);
+    console.error('updatePaymentRule error:', err);
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: 'A payment rule with this name already exists' });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ── deletePaymentRule ─────────────────────────────────────────────────────────
+
+export const deletePaymentRule = async (req, res) => {
+  try {
+    const ruleId = parseInt(req.params.id, 10);
+    if (isNaN(ruleId)) return res.status(400).json({ error: 'Invalid rule ID' });
+
+    const existing = await prisma.paymentRule.findUnique({
+      where: { id: ruleId },
+      include: { _count: { select: { products: true } } }
+    });
+    if (!existing) return res.status(404).json({ error: 'Rule not found' });
+
+    if (existing.is_default) {
+      return res.status(400).json({ error: 'The default payment rule cannot be deleted.' });
+    }
+
+    const deleted = await prisma.paymentRule.delete({ where: { id: ruleId } });
+
+    await audit({
+      userId: req.user.id,
+      action: 'PAYMENT_RULE_DELETED',
+      entity: 'PaymentRule',
+      entityId: ruleId,
+      oldValue: existing,
+      newValue: null,
+      ip: req.ip,
+    });
+
+    return res.json({ success: true, message: 'Payment rule deleted successfully', deleted });
+  } catch (err) {
+    console.error('deletePaymentRule error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -312,3 +440,68 @@ export const getAuditLogs = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// ── getResolvedOrderRules ────────────────────────────────────────────────────
+
+export const getResolvedOrderRules = async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id, 10);
+    if (isNaN(orderId)) return res.status(400).json({ error: 'Invalid order ID' });
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: { payment_rule: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const defaultRule = await prisma.paymentRule.findFirst({ where: { is_default: true } }) || {
+      default_deadline_days: 14,
+      default_penalty_pct: 10,
+      grace_period_days: 3,
+      default_cancel_fee_pct: 15,
+    };
+
+    const productRules = order.items
+      .map(item => item.product?.payment_rule)
+      .filter(Boolean);
+
+    let resolvedDays = defaultRule.default_deadline_days;
+    let resolvedPenaltyPct = defaultRule.default_penalty_pct;
+    let resolvedGraceDays = defaultRule.grace_period_days;
+    let resolvedCancelFeePct = defaultRule.default_cancel_fee_pct;
+
+    if (productRules.length > 0) {
+      const deadlines = productRules.map(r => r.default_deadline_days).filter(d => d != null);
+      if (deadlines.length > 0) resolvedDays = Math.min(...deadlines);
+
+      const penalties = productRules.map(r => r.default_penalty_pct).filter(p => p != null);
+      if (penalties.length > 0) resolvedPenaltyPct = Math.max(...penalties);
+
+      const graces = productRules.map(r => r.grace_period_days).filter(g => g != null);
+      if (graces.length > 0) resolvedGraceDays = Math.min(...graces);
+
+      const cancelFees = productRules.map(r => r.default_cancel_fee_pct).filter(c => c != null);
+      if (cancelFees.length > 0) resolvedCancelFeePct = Math.max(...cancelFees);
+    }
+
+    return res.json({
+      deadline_days: resolvedDays,
+      penalty_pct: resolvedPenaltyPct,
+      grace_period_days: resolvedGraceDays,
+      cancel_fee_pct: resolvedCancelFeePct,
+    });
+  } catch (error) {
+    console.error('Error resolving order rules:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

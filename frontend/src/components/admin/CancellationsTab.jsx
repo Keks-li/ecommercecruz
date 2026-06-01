@@ -16,6 +16,10 @@ export default function CancellationsTab() {
   const [error, setError]       = useState('');
   const [actionMsg, setActionMsg] = useState('');
 
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
   // Note modal
   const [noteModal, setNoteModal] = useState(null); // { reqId, action }
   const [adminNote, setAdminNote] = useState('');
@@ -55,7 +59,32 @@ export default function CancellationsTab() {
     } catch (e) { showMsg(e.response?.data?.error || 'Failed to process refund'); }
   };
 
-  if (loading) return <div className="space-y-3 animate-pulse">{[1,2,3].map(i => <div key={i} className="h-24 bg-slate-800 rounded-2xl"/>)}</div>;
+  // Perform filtering
+  const filteredRequests = requests.filter((req) => {
+    const order = req.order || {};
+    const matchesSearch = 
+      String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (req.reason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.items || []).some(item => (item.product?.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+
+    let matchesDate = true;
+    if (filterDate) {
+      const reqDate = new Date(req.created_at).toISOString().split('T')[0];
+      matchesDate = reqDate === filterDate;
+    }
+
+    return matchesSearch && matchesDate;
+  });
+
+  if (loading) return (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-10 w-48 bg-slate-800 rounded-lg"></div>
+      <div className="h-10 bg-slate-800 rounded-xl"></div>
+      {[1,2,3].map(i => <div key={i} className="h-24 bg-slate-800 rounded-2xl"/>)}
+    </div>
+  );
+
   if (error) return <div className="text-rose-400 bg-rose-500/10 p-4 rounded-xl border border-rose-500/30">{error}</div>;
 
   return (
@@ -68,15 +97,52 @@ export default function CancellationsTab() {
         {actionMsg && <div className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm rounded-xl">{actionMsg}</div>}
       </div>
 
-      {requests.length === 0 && (
-        <div className="text-center py-16 text-slate-500">
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by Order ID, customer, item, or reason..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+          />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all cursor-pointer outline-none"
+            />
+          </div>
+          {filterDate && (
+            <button
+              onClick={() => setFilterDate('')}
+              className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition border border-slate-700/50"
+            >
+              Clear Date
+            </button>
+          )}
+        </div>
+      </div>
+
+      {filteredRequests.length === 0 && (
+        <div className="text-center py-16 text-slate-500 bg-slate-900/20 border border-slate-800 rounded-2xl">
           <span className="material-symbols-outlined text-5xl">inbox</span>
-          <p className="mt-3 font-medium">No cancellation requests yet.</p>
+          <p className="mt-3 font-medium">No cancellation requests matching filters.</p>
         </div>
       )}
 
       <div className="space-y-4">
-        {requests.map(req => {
+        {filteredRequests.map(req => {
           const order = req.order;
           return (
             <div key={req.id} className="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-5 space-y-4">

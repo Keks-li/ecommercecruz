@@ -61,124 +61,156 @@ export default function OverviewTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Chart view states
-  const [chartPeriod, setChartPeriod] = useState('daily'); // 'daily' | 'weekly' | 'monthly'
-  const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue' | 'sales'
+  // Initialize selectedDate with today's date formatted as YYYY-MM-DD
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `/admin/stats${selectedDate ? `?date=${selectedDate}` : ''}`;
+      const { data } = await api.get(url);
+      setStats(data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load dashboard metrics.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data } = await api.get('/admin/stats');
-        setStats(data);
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to load dashboard metrics.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStats();
-  }, []);
+  }, [selectedDate]);
 
   if (loading) {
     return (
       <div className="space-y-8 animate-pulse">
-        <div className="h-10 w-48 bg-slate-800 rounded-lg"></div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-slate-800 rounded-lg"></div>
+            <div className="h-4 w-72 bg-slate-800 rounded-lg"></div>
+          </div>
+          <div className="h-10 w-64 bg-slate-800 rounded-xl"></div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-32 bg-slate-800 rounded-2xl"></div>
           ))}
         </div>
-        <div className="h-96 bg-slate-800 rounded-2xl"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="h-80 bg-slate-800 rounded-2xl"></div>
+          <div className="h-80 bg-slate-800 rounded-2xl"></div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-rose-400 bg-rose-500/15 p-5 rounded-2xl border border-rose-500/30 flex items-center gap-3">
-        <WarningIcon />
-        <div>
-          <h4 className="font-bold text-rose-200">Failed to load statistics</h4>
-          <p className="text-sm text-rose-400/90">{error}</p>
+      <div className="space-y-6">
+        {/* Header to allow resetting or picking a different date */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">Dashboard Overview</h1>
+            <p className="text-slate-400 mt-1">Showing stats filtered by date.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedDate('')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition border border-slate-700/60 flex items-center gap-1.5 ${
+                !selectedDate 
+                  ? 'bg-indigo-600 text-white border-transparent' 
+                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All-Time
+            </button>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none"
+            />
+          </div>
+        </div>
+        <div className="text-rose-400 bg-rose-500/15 p-5 rounded-2xl border border-rose-500/30 flex items-center gap-3">
+          <WarningIcon />
+          <div>
+            <h4 className="font-bold text-rose-200">Failed to load statistics</h4>
+            <p className="text-sm text-rose-400/90">{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Active chart data list
-  const activeChartData = stats?.charts?.[chartPeriod] || [];
-  
-  // Calculate max value for SVG chart scaling
-  const maxMetricValue = activeChartData.reduce((max, item) => {
-    const val = chartMetric === 'revenue' ? item.revenue : item.sales;
-    return val > max ? val : max;
-  }, 1) || 1;
-
   return (
     <div className="space-y-8 pb-12">
-      {/* Greetings Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Dashboard Overview</h1>
-        <p className="text-slate-400 mt-1">Here is a comprehensive summary of Cruzaro's platform performance.</p>
+      {/* Greetings Header with Date Picker */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Dashboard Overview</h1>
+          <p className="text-slate-400 mt-1">
+            {selectedDate 
+              ? `Showing stats for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+              : 'Showing all-time summary performance'}
+          </p>
+        </div>
+
+        {/* Elegant Date Picker with All-Time Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSelectedDate('')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition border border-slate-700/60 flex items-center gap-1.5 ${
+              !selectedDate 
+                ? 'bg-indigo-600 text-white border-transparent shadow-lg shadow-indigo-500/20' 
+                : 'bg-[#0d1117]/60 text-slate-400 hover:text-slate-200 hover:bg-[#0d1117]'
+            }`}
+          >
+            All-Time
+          </button>
+          
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-transparent transition-all outline-none cursor-pointer"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Revenue"
+          title={selectedDate ? "Revenue on Date" : "Total Revenue"}
           value={`₦${Number(stats.totalRevenue).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`}
-          subtitle="All-time customer payments"
+          subtitle={selectedDate ? "Payments captured on this day" : "All-time customer payments"}
           icon={RevenueIcon}
         />
         <StatCard
-          title="Total Orders"
+          title={selectedDate ? "Orders on Date" : "Total Orders"}
           value={stats.totalOrders}
-          subtitle="Placed by customers"
+          subtitle={selectedDate ? "Completed on this day" : "Placed by customers"}
           icon={OrdersIcon}
         />
         <StatCard
-          title="Total Customers"
+          title={selectedDate ? "New Customers" : "Total Customers"}
           value={stats.totalCustomers}
-          subtitle={`${stats.totalActiveUsers} currently active`}
+          subtitle={selectedDate ? "Registered on this day" : `${stats.totalActiveUsers} currently active`}
           icon={CustomersIcon}
         />
         <StatCard
-          title="Pending Orders"
+          title={selectedDate ? "Pending Orders on Date" : "Pending Orders"}
           value={stats.pendingOrders}
-          subtitle="Awaiting processing"
+          subtitle={selectedDate ? "Placed on this day & pending" : "Awaiting processing"}
           icon={PendingIcon}
           colorClass={stats.pendingOrders > 0 ? "from-slate-900/60 to-amber-900/10 border-amber-500/20" : "from-slate-900/60 to-slate-900/40"}
         />
-      </div>
-
-      {/* Temporal Sales Breakdown */}
-      <div className="bg-slate-900/40 border border-slate-700/30 rounded-2xl p-6 shadow-xl shadow-black/10">
-        <h3 className="text-slate-200 font-bold text-lg mb-4 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-          Temporal Sales & Activity
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-800/80">
-          {/* Today */}
-          <div className="pt-4 md:pt-0 md:px-4 first:pl-0 space-y-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Performance</span>
-            <p className="text-2xl font-extrabold text-white">₦{Number(stats.salesTodayRevenue).toLocaleString('en-NG')}</p>
-            <p className="text-sm text-slate-400 font-medium">{stats.salesTodayCount} orders completed</p>
-          </div>
-          {/* Week */}
-          <div className="pt-4 md:pt-0 md:px-4 space-y-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last 7 Days</span>
-            <p className="text-2xl font-extrabold text-indigo-400">₦{Number(stats.salesWeekRevenue).toLocaleString('en-NG')}</p>
-            <p className="text-sm text-slate-400 font-medium">{stats.salesWeekCount} orders completed</p>
-          </div>
-          {/* Month */}
-          <div className="pt-4 md:pt-0 md:px-4 space-y-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last 30 Days</span>
-            <p className="text-2xl font-extrabold text-emerald-400">₦{Number(stats.salesMonthRevenue).toLocaleString('en-NG')}</p>
-            <p className="text-sm text-slate-400 font-medium">{stats.salesMonthCount} orders completed</p>
-          </div>
-        </div>
       </div>
 
       {/* Inventory & Low Stock Alert Feed */}
@@ -202,111 +234,23 @@ export default function OverviewTab() {
         </div>
       )}
 
-      {/* Dynamic Interactive Analytics Chart */}
-      <div className="bg-[#0f1524] border border-slate-800 rounded-3xl p-6 shadow-2xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h3 className="text-white font-bold text-xl tracking-tight">Interactive Performance Charts</h3>
-            <p className="text-slate-400 text-sm mt-0.5">Track sales frequency and revenue spikes across custom intervals.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Metric Toggle */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-1 flex">
-              <button
-                onClick={() => setChartMetric('revenue')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  chartMetric === 'revenue' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Revenue
-              </button>
-              <button
-                onClick={() => setChartMetric('sales')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  chartMetric === 'sales' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Sales Count
-              </button>
-            </div>
-
-            {/* Period selector */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-1 flex">
-              {['daily', 'weekly', 'monthly'].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setChartPeriod(period)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${
-                    chartPeriod === period ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Custom Pure SVG Visualization Chart */}
-        <div className="relative pt-4 px-2">
-          {activeChartData.length === 0 ? (
-            <div className="h-64 flex items-center justify-center text-slate-500 bg-slate-900/25 border border-dashed border-slate-800 rounded-2xl">
-              No transaction history found for the active scope.
-            </div>
-          ) : (
-            <div>
-              {/* SVG Area/Bar chart */}
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] h-72 flex items-end justify-between gap-6 pb-2 border-b border-slate-800">
-                  {activeChartData.map((item, idx) => {
-                    const itemValue = chartMetric === 'revenue' ? item.revenue : item.sales;
-                    const heightPercent = Math.max(10, (itemValue / maxMetricValue) * 80); // bound height between 10% and 90%
-                    
-                    return (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-3 group relative cursor-pointer">
-                        {/* Tooltip on hover */}
-                        <div className="absolute bottom-[105%] bg-slate-900 border border-slate-700 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition duration-200 z-10 pointer-events-none scale-90 group-hover:scale-100 text-center whitespace-nowrap">
-                          {chartMetric === 'revenue' ? `₦${Number(itemValue).toLocaleString('en-NG')}` : `${itemValue} Orders`}
-                        </div>
-
-                        {/* Bar Segment */}
-                        <div className="w-full relative rounded-t-lg overflow-hidden flex flex-col justify-end bg-slate-900/50 border border-slate-800/40 h-56">
-                          <div
-                            style={{ height: `${heightPercent}%` }}
-                            className={`w-full rounded-t-md transition-all duration-700 origin-bottom scale-y-100 bg-gradient-to-t ${
-                              chartMetric === 'revenue' ? 'from-emerald-600/20 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.1)]' : 'from-indigo-600/20 to-indigo-400 shadow-[0_0_15px_rgba(129,140,248,0.1)]'
-                            }`}
-                          />
-                        </div>
-
-                        {/* Label */}
-                        <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-200 transition-colors">
-                          {item.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
+      {/* Double Column Feed for Orders and Top Products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Top Selling Products Card */}
         <div className="bg-[#0f1524] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-white font-bold text-lg tracking-tight">Top Selling Products</h3>
-              <p className="text-slate-400 text-xs mt-0.5">Top performing items by quantity sold.</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {selectedDate ? "Top performing items on this date." : "Top performing items by quantity sold."}
+              </p>
             </div>
             <span className="text-xs font-bold bg-indigo-500/10 text-indigo-400 px-2.5 py-1 rounded-full border border-indigo-500/20">Top 5</span>
           </div>
 
           <div className="divide-y divide-slate-800/60">
             {!stats.topSellingProducts || stats.topSellingProducts.length === 0 ? (
-              <p className="text-center text-slate-500 py-10 text-sm">No sales logged yet.</p>
+              <p className="text-center text-slate-500 py-10 text-sm">No sales registered for this scope.</p>
             ) : (
               stats.topSellingProducts.map((prod) => (
                 <div key={prod.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
@@ -331,15 +275,17 @@ export default function OverviewTab() {
         <div className="bg-[#0f1524] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="text-white font-bold text-lg tracking-tight">Recent Orders</h3>
-              <p className="text-slate-400 text-xs mt-0.5">Real-time checkout feed from customers.</p>
+              <h3 className="text-white font-bold text-lg tracking-tight">Orders Log</h3>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {selectedDate ? "Real-time checkout feed from this date." : "Real-time customer order checkout feed."}
+              </p>
             </div>
-            <span className="text-xs font-semibold text-slate-500">Live feed</span>
+            <span className="text-xs font-semibold text-slate-500">{selectedDate ? "Day log" : "Recent feed"}</span>
           </div>
 
           <div className="space-y-4">
             {!stats.recentOrders || stats.recentOrders.length === 0 ? (
-              <p className="text-center text-slate-500 py-10 text-sm">No orders registered yet.</p>
+              <p className="text-center text-slate-500 py-10 text-sm">No orders registered for this scope.</p>
             ) : (
               stats.recentOrders.map((order) => (
                 <div key={order.id} className="bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/50 rounded-xl p-4 transition-colors flex flex-col gap-2">
@@ -350,7 +296,7 @@ export default function OverviewTab() {
                         Order #CRZ-{order.id.toString().padStart(5, '0')} • {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                       {order.status}
                     </span>
                   </div>

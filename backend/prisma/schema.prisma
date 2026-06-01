@@ -52,19 +52,20 @@ model User {
 }
 
 model Product {
-  id          Int         @id @default(autoincrement())
-  name        String
-  description String
-  price       Float
-  unique_code String      @unique
-  status      Status
-  type        ProductType @default(SINGLE)
-  category    String?
-  image_url   String
-  stock       Int         @default(10)
-  created_at  DateTime    @default(now())
-  order_items OrderItem[]
-  paymentRule ProductPaymentRule?
+  id              Int          @id @default(autoincrement())
+  name            String
+  description     String
+  price           Float
+  unique_code     String       @unique
+  status          Status
+  type            ProductType  @default(SINGLE)
+  category        String?
+  image_url       String
+  stock           Int          @default(10)
+  created_at      DateTime     @default(now())
+  order_items     OrderItem[]
+  payment_rule_id Int?
+  payment_rule    PaymentRule? @relation(fields: [payment_rule_id], references: [id], onDelete: SetNull)
 }
 
 model Order {
@@ -127,17 +128,20 @@ model CancellationRequest {
   updated_at          DateTime           @updatedAt
 }
 
-// Global admin-configurable payment defaults (singleton — one row)
+// Generalised Payment Rules that can be applied to products
 model PaymentRule {
-  id                     Int      @id @default(autoincrement())
-  default_deadline_days  Int      @default(14)
-  default_penalty_pct    Float    @default(10)
-  grace_period_days      Int      @default(3)
-  default_cancel_fee_pct Float    @default(15)
-  enable_recurring       Boolean  @default(false)
-  penalty_frequency      String   @default("monthly")
-  max_refund_days        Int      @default(30)
-  updated_at             DateTime @updatedAt
+  id                     Int       @id @default(autoincrement())
+  name                   String    @unique
+  is_default             Boolean   @default(false)
+  default_deadline_days  Int       @default(14)
+  default_penalty_pct    Float     @default(10)
+  grace_period_days      Int       @default(3)
+  default_cancel_fee_pct Float     @default(15)
+  enable_recurring       Boolean   @default(false)
+  penalty_frequency      String    @default("monthly")
+  max_refund_days        Int       @default(30)
+  updated_at             DateTime  @updatedAt
+  products               Product[]
 }
 
 // Immutable audit trail
@@ -152,18 +156,3 @@ model AuditLog {
   ip_address String?
   created_at DateTime @default(now())
 }
-
-// Per-product payment rule overrides (all fields optional — null means use global default)
-model ProductPaymentRule {
-  id                     Int      @id @default(autoincrement())
-  product_id             Int      @unique
-  product                Product  @relation(fields: [product_id], references: [id])
-  deadline_days          Int?
-  penalty_pct            Float?
-  grace_period_days      Int?
-  cancel_fee_pct         Float?
-  enable_recurring       Boolean?
-  penalty_frequency      String?
-  updated_at             DateTime @updatedAt
-}
-

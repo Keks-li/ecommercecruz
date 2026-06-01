@@ -10,6 +10,8 @@ import {
   getOverdueOrders,
   getPaymentRules,
   updatePaymentRules,
+  createPaymentRule,
+  deletePaymentRule,
   getAuditLogs,
 } from '../controllers/adminPaymentController.js';
 import {
@@ -33,9 +35,12 @@ router.post('/:id/apply-penalty', applyPenalty);
 router.post('/:id/waive-penalty', waivePenalty);
 router.get('/:id/payment-history', getPaymentHistory);
 
-// ── Payment rules (singleton config) ─────────────────────────────────────────
+// ── Payment rules ────────────────────────────────────────────────────────────
 router.get('/payment-rules', getPaymentRules);
+router.post('/payment-rules', createPaymentRule);
+router.put('/payment-rules/:id', updatePaymentRules);
 router.put('/payment-rules', updatePaymentRules);
+router.delete('/payment-rules/:id', deletePaymentRule);
 
 // ── Cancellation requests ─────────────────────────────────────────────────────
 router.get('/cancellations', getCancellationRequests);
