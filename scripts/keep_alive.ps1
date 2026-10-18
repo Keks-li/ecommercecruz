@@ -13,7 +13,7 @@ param(
 )
 
 if (-not $Url) {
-    $Url = "https://cruzaro-backend.onrender.com"
+    $Url = "https://ecommercecruz.onrender.com"
 }
 
 $BaseUrl = $Url.TrimEnd('/')

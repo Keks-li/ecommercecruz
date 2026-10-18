@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Ping Backend
         env:
-          RENDER_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://cruzaro-backend.onrender.com' }}
+          RENDER_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://ecommercecruz.onrender.com' }}
         run: |
           CLEAN_URL="${RENDER_URL%/}"
           TARGET_URL="${CLEAN_URL}/api/health"

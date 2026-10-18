@@ -17,7 +17,7 @@ const INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000;
 const TIMEOUT_MS = 90000; // 90s timeout (allows waking up from cold start if already asleep)
 
 // Read target URL from CLI arg, environment variable, or fallback
-const rawUrl = process.argv[2] || process.env.RENDER_BACKEND_URL || process.env.BACKEND_URL || 'https://cruzaro-backend.onrender.com';
+const rawUrl = process.argv[2] || process.env.RENDER_BACKEND_URL || process.env.BACKEND_URL || 'https://ecommercecruz.onrender.com';
 const baseUrl = rawUrl.replace(/\/+$/, '');
 const targetUrl = baseUrl.endsWith('/api/health') ? baseUrl : `${baseUrl}/api/health`;
 
