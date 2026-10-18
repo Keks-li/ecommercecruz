@@ -198,16 +198,17 @@ export default function CartDrawer({ open, onClose }) {
         qty: item.qty
       }));
 
+      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+
       // Initialize Paystack checkout session
       const { data } = await api.post('/paystack/initialize-checkout', {
         items: orderItems,
         pickup_region: selectedRegion,
         pickup_district: selectedDistrict,
         pickup_city: city.trim(),
-        amount_paid: numAmount
+        amount_paid: numAmount,
+        email: userObj.email,
       });
-
-      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
 
       // Launch Paystack inline checkout or redirect
       await payWithPaystack({

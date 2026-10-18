@@ -321,10 +321,13 @@ function OrderCard({ order, onPaymentSuccess }) {
     setPaying(true);
     setPayError('');
     try {
-      // 1. Initialize Paystack balance payment session
-      const { data } = await api.post(`/orders/${order.id}/paystack/initialize`, { amount: num });
-
       const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // 1. Initialize Paystack balance payment session
+      const { data } = await api.post(`/orders/${order.id}/paystack/initialize`, {
+        amount: num,
+        email: userObj.email,
+      });
 
       // 2. Launch Paystack inline checkout or hosted redirect
       await payWithPaystack({

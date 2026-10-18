@@ -56,6 +56,7 @@ export const checkStatus = async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden: User is suspended' });
     }
 
+    req.user.email = user.email;
     next();
   } catch (err) {
     console.error('Error checking user status:', err);

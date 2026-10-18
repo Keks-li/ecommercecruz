@@ -212,9 +212,19 @@ export const initializeCheckoutPayment = async (req, res) => {
       });
     }
 
-    const { items, pickup_region, pickup_district, pickup_city, amount_paid } = req.body;
+    const { items, pickup_region, pickup_district, pickup_city, amount_paid, email: bodyEmail } = req.body;
     const userId = req.user.id;
-    const userEmail = req.user.email;
+
+    // Resolve user email reliably (from req.user, request body, or database fallback)
+    let userEmail = req.user.email || bodyEmail;
+    if (!userEmail) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      userEmail = dbUser?.email;
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Customer email address is required to initialize payment.' });
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Order must contain at least one item' });
@@ -405,8 +415,17 @@ export const initializeBalancePayment = async (req, res) => {
     if (isNaN(orderId)) return res.status(400).json({ error: 'Invalid order ID' });
 
     const userId = req.user.id;
-    const userEmail = req.user.email;
-    const { amount } = req.body;
+    const { amount, email: bodyEmail } = req.body;
+
+    let userEmail = req.user.email || bodyEmail;
+    if (!userEmail) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      userEmail = dbUser?.email;
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Customer email address is required to initialize payment.' });
+    }
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {

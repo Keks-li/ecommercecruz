@@ -45,12 +45,14 @@ export async function payWithPaystack({
   try {
     const key = await getPaystackPublicKey();
     const amountInPesewas = Math.round(parseFloat(amountInCedis) * 100);
+    const resolvedEmail =
+      email || JSON.parse(localStorage.getItem('user') || '{}').email || '';
 
     // If PaystackPop is available in window and public key exists, use seamless inline popup
     if (typeof window !== 'undefined' && window.PaystackPop && key && key !== 'pk_test_placeholder_cruzaro_test_public_key') {
       const handler = window.PaystackPop.setup({
         key,
-        email,
+        email: resolvedEmail,
         amount: amountInPesewas,
         currency: 'GHS',
         ref: reference,
