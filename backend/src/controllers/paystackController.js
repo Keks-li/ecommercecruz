@@ -325,19 +325,39 @@ export const initializeCheckoutPayment = async (req, res) => {
       process.env.PAYSTACK_CALLBACK_URL ||
       `${req.protocol}://${req.get('host')}/profile`;
 
+    // Retrieve customer name and phone
+    const dbCustomer = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, phone: true },
+    });
+    const customerFullName = (dbCustomer?.name || '').trim();
+    const nameParts = customerFullName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+    const finalPhone = dbCustomer?.phone || userPhone || '';
+
     const paystackPayload = {
       email: userEmail,
       amount: amountInPesewas,
       currency: 'GHS',
       reference,
       callback_url: `${callbackUrl}?reference=${reference}&order_id=${order.id}`,
+      first_name: firstName || undefined,
+      last_name: lastName || undefined,
+      phone: finalPhone || undefined,
       metadata: {
         order_id: order.id,
         user_id: userId,
-        phone: userPhone || undefined,
+        phone: finalPhone || undefined,
+        customer_name: customerFullName || undefined,
         payment_type: 'INITIAL',
         intended_amount: parsedAmountPaid,
         custom_fields: [
+          ...(customerFullName ? [{
+            display_name: 'Customer Name',
+            variable_name: 'customer_name',
+            value: customerFullName,
+          }] : []),
           {
             display_name: 'Order Reference',
             variable_name: 'order_reference',
@@ -348,10 +368,10 @@ export const initializeCheckoutPayment = async (req, res) => {
             variable_name: 'customer_id',
             value: String(userId),
           },
-          ...(userPhone ? [{
+          ...(finalPhone ? [{
             display_name: 'Mobile Money Number',
             variable_name: 'mobile_money_number',
-            value: userPhone,
+            value: finalPhone,
           }] : []),
         ],
       },
@@ -465,11 +485,15 @@ export const initializeBalancePayment = async (req, res) => {
       process.env.PAYSTACK_CALLBACK_URL ||
       `${req.protocol}://${req.get('host')}/profile`;
 
-    let userPhone = req.body.phone;
-    if (!userPhone) {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
-      userPhone = dbUser?.phone;
-    }
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, phone: true },
+    });
+    const customerFullName = (dbUser?.name || '').trim();
+    const nameParts = customerFullName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+    const finalPhone = req.body.phone || dbUser?.phone || '';
 
     const paystackPayload = {
       email: userEmail,
@@ -477,22 +501,31 @@ export const initializeBalancePayment = async (req, res) => {
       currency: 'GHS',
       reference,
       callback_url: `${callbackUrl}?reference=${reference}&order_id=${order.id}`,
+      first_name: firstName || undefined,
+      last_name: lastName || undefined,
+      phone: finalPhone || undefined,
       metadata: {
         order_id: order.id,
         user_id: userId,
-        phone: userPhone || undefined,
+        phone: finalPhone || undefined,
+        customer_name: customerFullName || undefined,
         payment_type: 'BALANCE',
         intended_amount: parsedAmount,
         custom_fields: [
+          ...(customerFullName ? [{
+            display_name: 'Customer Name',
+            variable_name: 'customer_name',
+            value: customerFullName,
+          }] : []),
           {
             display_name: 'Order Reference',
             variable_name: 'order_reference',
             value: `#CRZ-${order.id.toString().padStart(5, '0')}`,
           },
-          ...(userPhone ? [{
+          ...(finalPhone ? [{
             display_name: 'Mobile Money Number',
             variable_name: 'mobile_money_number',
-            value: userPhone,
+            value: finalPhone,
           }] : []),
         ],
       },

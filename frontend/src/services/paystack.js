@@ -49,6 +49,10 @@ export async function payWithPaystack({
     const resolvedUser = JSON.parse(localStorage.getItem('user') || '{}');
     const resolvedEmail = email || resolvedUser.email || '';
     const resolvedPhone = phone || resolvedUser.phone || '';
+    const resolvedName = (resolvedUser.name || '').trim();
+    const nameParts = resolvedName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
 
     // If PaystackPop is available in window and public key exists, use seamless inline popup
     if (typeof window !== 'undefined' && window.PaystackPop && key && key !== 'pk_test_placeholder_cruzaro_test_public_key') {
@@ -59,16 +63,28 @@ export async function payWithPaystack({
         currency: 'GHS',
         channels: ['mobile_money', 'card'],
         ref: reference,
-        ...(resolvedPhone ? { phone: resolvedPhone } : {}),
+        firstname: firstName || undefined,
+        lastname: lastName || undefined,
+        phone: resolvedPhone || undefined,
         metadata: {
           phone: resolvedPhone || undefined,
-          custom_fields: resolvedPhone ? [
-            {
-              display_name: 'Mobile Money Number',
-              variable_name: 'mobile_money_number',
-              value: resolvedPhone,
-            }
-          ] : [],
+          customer_name: resolvedName || undefined,
+          custom_fields: [
+            ...(resolvedName ? [
+              {
+                display_name: 'Customer Name',
+                variable_name: 'customer_name',
+                value: resolvedName,
+              }
+            ] : []),
+            ...(resolvedPhone ? [
+              {
+                display_name: 'Mobile Money Number',
+                variable_name: 'mobile_money_number',
+                value: resolvedPhone,
+              }
+            ] : [])
+          ],
         },
         ...(accessCode ? { access_code: accessCode } : {}),
         callback: function (response) {

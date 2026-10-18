@@ -26,9 +26,19 @@ export default function CustomerAuth() {
     e.preventDefault();
     setError('');
 
-    if (!isLogin && password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
+    if (!isLogin) {
+      if (!name.trim()) {
+        setError('Please enter your full name.');
+        return;
+      }
+      if (!phone.trim()) {
+        setError('Please enter your Ghana mobile number for Paystack & order tracking.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -41,9 +51,9 @@ export default function CustomerAuth() {
         });
       } else {
         res = await api.post('/auth/register', {
-          email,
-          phone: phone.trim() || undefined,
-          name: name.trim() || undefined,
+          email: email.trim(),
+          phone: phone.trim(),
+          name: name.trim(),
           password,
         });
       }
@@ -155,7 +165,7 @@ export default function CustomerAuth() {
               <>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
-                    Full Name <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                    Full Name <span className="text-blue-600 font-bold">*</span>
                   </label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
@@ -163,9 +173,10 @@ export default function CustomerAuth() {
                     </span>
                     <input
                       type="text"
+                      required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Kofi Mensah"
+                      placeholder="e.g. Kwame Mensah"
                       className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200"
                     />
                   </div>
@@ -173,7 +184,7 @@ export default function CustomerAuth() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
-                    Email Address
+                    Email Address <span className="text-blue-600 font-bold">*</span>
                   </label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
@@ -192,7 +203,7 @@ export default function CustomerAuth() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
-                    Ghana Mobile Number <span className="text-slate-400 font-normal lowercase">(for MoMo & updates)</span>
+                    Ghana Mobile Number <span className="text-blue-600 font-bold">*</span> <span className="text-slate-400 font-normal lowercase">(for MoMo & delivery)</span>
                   </label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
@@ -200,10 +211,11 @@ export default function CustomerAuth() {
                     </span>
                     <input
                       type="tel"
+                      required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="e.g. 0244123456 or +233244123456"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200 font-mono"
                     />
                   </div>
                 </div>

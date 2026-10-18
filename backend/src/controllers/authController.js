@@ -17,28 +17,35 @@ export const register = async (req, res) => {
     const { email, password, phone, name } = req.body;
     const role = 'CUSTOMER'; // Force 'CUSTOMER' role on registration
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Please provide email and password' });
+    if (!email || !password || !name || !phone) {
+      return res.status(400).json({ error: 'Full name, email address, mobile number, and password are all required.' });
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPhone = phone ? phone.trim() : null;
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedName) {
+      return res.status(400).json({ error: 'Please provide your full name.' });
+    }
+
+    if (!trimmedPhone) {
+      return res.status(400).json({ error: 'Please provide a valid Ghana mobile number.' });
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email: trimmedEmail },
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    if (trimmedPhone) {
-      const existingPhone = await prisma.user.findUnique({
-        where: { phone: trimmedPhone },
-      });
-      if (existingPhone) {
-        return res.status(400).json({ error: 'An account with this mobile number already exists' });
-      }
+    const existingPhone = await prisma.user.findUnique({
+      where: { phone: trimmedPhone },
+    });
+    if (existingPhone) {
+      return res.status(400).json({ error: 'An account with this mobile number already exists.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -49,7 +56,7 @@ export const register = async (req, res) => {
         email: trimmedEmail,
         password: hashedPassword,
         phone: trimmedPhone,
-        name: name ? name.trim() : null,
+        name: trimmedName,
         role: role,
         status: 'ACTIVE',
         auth_provider: 'LOCAL',
