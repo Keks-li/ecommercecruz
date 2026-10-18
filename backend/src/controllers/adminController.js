@@ -1,4 +1,7 @@
 import prisma from '../utils/prisma.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { sendEmailConfirmation } from '../utils/mailer.js';
 
 export const getStats = async (req, res) => {
   try {
@@ -354,6 +357,223 @@ export const getRevenueRealized = async (req, res) => {
   } catch (error) {
     console.error('Error calculating realized revenue:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/admin/change-password
+ * Admin changes their account password
+ */
+export const changeAdminPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const adminId = req.user.id;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Please provide both your current password and new password.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized. Admin account required.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password does not match.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: adminId },
+      data: { password: hashedPassword },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        user_id: adminId,
+        action: 'ADMIN_PASSWORD_UPDATED',
+        entity: 'User',
+        entity_id: adminId,
+        ip_address: req.ip || req.headers['x-forwarded-for'],
+      },
+    });
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (err) {
+    console.error('Error changing admin password:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/admin/change-email
+ * Admin requests to change their email address; dispatches confirmation link
+ */
+export const requestChangeAdminEmail = async (req, res) => {
+  try {
+    const { newEmail, currentPassword } = req.body;
+    const adminId = req.user.id;
+
+    if (!newEmail || !currentPassword) {
+      return res.status(400).json({ error: 'Please provide both the new email and your current password.' });
+    }
+
+    const trimmedNewEmail = newEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedNewEmail)) {
+      return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized.' });
+    }
+
+    if (admin.email.toLowerCase() === trimmedNewEmail) {
+      return res.status(400).json({ error: 'The new email is the same as your current email.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect current password.' });
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { email: trimmedNewEmail },
+    });
+    if (existing) {
+      return res.status(400).json({ error: 'An account with this email address already exists.' });
+    }
+
+    // Generate cryptographically signed token valid for 24h
+    const token = jwt.sign(
+      { userId: adminId, newEmail: trimmedNewEmail, action: 'CONFIRM_ADMIN_EMAIL' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    const origin = req.get('origin') || req.get('referer');
+    const frontendBase = origin
+      ? origin.replace(/\/+$/, '')
+      : (process.env.FRONTEND_URL || 'http://localhost:3000');
+    const confirmationUrl = `${frontendBase}/admin/confirm-email?token=${encodeURIComponent(token)}`;
+
+    // Dispatch confirmation email
+    await sendEmailConfirmation({
+      to: trimmedNewEmail,
+      confirmationUrl,
+      adminName: admin.name || 'Administrator',
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        user_id: adminId,
+        action: 'ADMIN_EMAIL_CHANGE_REQUESTED',
+        entity: 'User',
+        entity_id: adminId,
+        new_value: trimmedNewEmail,
+        ip_address: req.ip || req.headers['x-forwarded-for'],
+      },
+    });
+
+    res.json({
+      message: `A confirmation link has been sent to ${trimmedNewEmail}. Please check your email and click the confirmation link to complete the change.`,
+      confirmationUrl, // returned for developer convenience in local dev
+    });
+  } catch (err) {
+    console.error('Error requesting email change:', err);
+    res.status(500).json({ error: err.message || 'Failed to process email change request.' });
+  }
+};
+
+/**
+ * POST /api/admin/confirm-email
+ * Verifies the token and confirms the new admin email address
+ */
+export const confirmAdminEmail = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required.' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtErr) {
+      return res.status(400).json({ error: 'The email confirmation link is invalid or has expired. Please request a new link.' });
+    }
+
+    if (decoded.action !== 'CONFIRM_ADMIN_EMAIL' || !decoded.userId || !decoded.newEmail) {
+      return res.status(400).json({ error: 'Invalid verification token payload.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user || user.role !== 'ADMIN') {
+      return res.status(404).json({ error: 'Administrator account not found.' });
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { email: decoded.newEmail },
+    });
+    if (existing && existing.id !== user.id) {
+      return res.status(400).json({ error: 'This email is already in use by another account.' });
+    }
+
+    const oldEmail = user.email;
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { email: decoded.newEmail },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        user_id: user.id,
+        action: 'ADMIN_EMAIL_CONFIRMED',
+        entity: 'User',
+        entity_id: user.id,
+        old_value: oldEmail,
+        new_value: decoded.newEmail,
+        ip_address: req.ip || req.headers['x-forwarded-for'],
+      },
+    });
+
+    const newToken = jwt.sign(
+      { id: updatedUser.id, role: updatedUser.role, email: updatedUser.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      message: 'Admin email updated successfully!',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        name: updatedUser.name,
+      },
+      token: newToken,
+    });
+  } catch (err) {
+    console.error('Error confirming admin email:', err);
+    res.status(500).json({ error: 'Failed to confirm email.' });
   }
 };
 

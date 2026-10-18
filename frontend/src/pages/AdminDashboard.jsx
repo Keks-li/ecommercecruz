@@ -8,9 +8,11 @@ import RevenueRealizedTab from '../components/admin/RevenueRealizedTab';
 import PaymentRulesTab from '../components/admin/PaymentRulesTab';
 import CancellationsTab from '../components/admin/CancellationsTab';
 import AuditLogTab from '../components/admin/AuditLogTab';
+import AdminSettingsTab from '../components/admin/AdminSettingsTab';
 import AdminPanel from './AdminPanel';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
+const LockIcon     = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
 const ChartIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>;
 const PackageIcon  = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
 const BagIcon      = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
@@ -66,6 +68,12 @@ const NAV_GROUPS = [
       { id: 'customers',  label: 'Customers',    icon: UsersIcon },
     ],
   },
+  {
+    label: 'Settings',
+    items: [
+      { id: 'security',   label: 'Account Security', icon: LockIcon },
+    ],
+  },
 ];
 
 export default function AdminDashboard() {
@@ -89,6 +97,7 @@ export default function AdminDashboard() {
       case 'payment-rules':    return <PaymentRulesTab />;
       case 'audit-log':        return <AuditLogTab />;
       case 'customers':        return <AdminPanel />;
+      case 'security':         return <AdminSettingsTab />;
       default:                 return <RevenueRealizedTab onNavigateTab={(tab) => setActiveTab(tab)} />;
     }
   };
@@ -130,14 +139,23 @@ export default function AdminDashboard() {
 
       {/* User footer */}
       <div className="p-4 border-t border-slate-800 space-y-3">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-sm shrink-0">
-            {user.email[0].toUpperCase()}
+        <div
+          onClick={() => setActiveTab('security')}
+          className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-800/60 cursor-pointer transition group"
+          title="Account Security & Settings"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-sm shrink-0">
+              {user.email[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-slate-200 text-xs font-semibold truncate group-hover:text-indigo-400 transition">{user.email}</p>
+              <p className="text-indigo-400 text-[10px]">Administrator • Settings</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-slate-200 text-xs font-semibold truncate">{user.email}</p>
-            <p className="text-indigo-400 text-[10px]">Administrator</p>
-          </div>
+          <span className="text-slate-500 group-hover:text-indigo-400 transition">
+            <LockIcon />
+          </span>
         </div>
         <button
           id="admin-logout-btn"
