@@ -148,15 +148,54 @@ export default function OrderDetailsModal({ orderId, initialOrder = null, onClos
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Customer Box */}
               <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                  </svg>
-                  Customer Account
-                </p>
-                <p className="text-slate-200 font-semibold text-sm truncate">{order.user?.email || 'Unknown User'}</p>
-                <p className="text-slate-500 text-xs mt-1">User ID: #{order.user_id}</p>
-                <p className="text-slate-500 text-xs mt-0.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    </svg>
+                    Customer Profile
+                  </p>
+                  {order.user?.auth_provider && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+                      {order.user.auth_provider === 'GOOGLE' ? '🌐 Google' : order.user.auth_provider === 'APPLE' ? '🍎 Apple' : '✉️ Local'}
+                    </span>
+                  )}
+                </div>
+                {order.user?.name && (
+                  <p className="text-slate-100 font-bold text-sm truncate">{order.user.name}</p>
+                )}
+                <p className="text-slate-300 text-xs font-mono truncate">{order.user?.email || 'Unknown User'}</p>
+                
+                {order.user?.phone ? (
+                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
+                      <span>🇬🇭</span>
+                      <span>{order.user.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`tel:${order.user.phone}`}
+                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition"
+                        title="Voice Call"
+                      >
+                        📞 Call
+                      </a>
+                      <a
+                        href={`https://wa.me/${order.user.phone.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[11px] font-medium transition"
+                        title="WhatsApp"
+                      >
+                        💬 WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 text-[11px] mt-1.5 italic">No mobile number registered</p>
+                )}
+
+                <p className="text-slate-500 text-[11px] mt-2">
                   Order Date: {new Date(order.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                 </p>
               </div>

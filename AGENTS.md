@@ -126,8 +126,10 @@ All routes are prefixed with `/api`.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/health` | None | Health check |
-| POST | `/api/auth/register` | None | Customer registration |
-| POST | `/api/auth/login` | None | Login (any role) |
+| POST | `/api/auth/register` | None | Customer registration (supports Ghana phone & name) |
+| POST | `/api/auth/login` | None | Login with email or phone number (any role) |
+| POST | `/api/auth/social-login` | None | Social sign-in (Google & Apple OAuth exchange/link) |
+| PATCH | `/api/auth/profile` | protect | Update customer name and Ghana phone number |
 | GET | `/api/products` | None | Public product listing |
 | GET | `/api/products/:id` | None | Product detail |
 | GET | `/api/products/payment-policy` | None | Active default payment rules policy |
@@ -183,7 +185,7 @@ All routes are prefixed with `/api`.
 ### Models
 | Model | Key Fields |
 |-------|-----------|
-| `User` | id, email, password, role, status, created_at |
+| `User` | id, email, password (optional), phone (@unique, optional), name, auth_provider (`LOCAL` · `GOOGLE` · `APPLE`), avatar_url, role, status, created_at |
 | `Product` | id, name, description, price, **unique_code** (8-char alphanumeric), status, type, category, image_url, stock, payment_rule_id |
 | `Order` | id, user_id, total_price, amount_paid, penalty_amount, payment_status, cancellation_status, pickup_region/district/city |
 | `OrderItem` | id, order_id, product_id, quantity, price |

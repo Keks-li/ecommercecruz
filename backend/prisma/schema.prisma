@@ -42,13 +42,17 @@ enum CancellationStatus {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  password   String
-  role       Role
-  status     Status
-  created_at DateTime @default(now())
-  orders     Order[]
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  password      String?
+  phone         String?  @unique
+  name          String?
+  auth_provider String   @default("LOCAL")
+  avatar_url    String?
+  role          Role
+  status        Status
+  created_at    DateTime @default(now())
+  orders        Order[]
 }
 
 model Product {

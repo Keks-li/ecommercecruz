@@ -94,6 +94,7 @@ export default function CartDrawer({ open, onClose }) {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [city, setCity] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [amountToPay, setAmountToPay] = useState('');
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [paymentPolicy, setPaymentPolicy] = useState(null);
@@ -102,6 +103,10 @@ export default function CartDrawer({ open, onClose }) {
   useEffect(() => {
     if (open) {
       validateCart();
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        if (u.phone) setContactPhone(u.phone);
+      } catch (_) {}
     } else {
       setCheckoutSuccess(null);
       setAuthPrompt(false);
@@ -110,6 +115,7 @@ export default function CartDrawer({ open, onClose }) {
       setSelectedRegion('');
       setSelectedDistrict('');
       setCity('');
+      setContactPhone('');
       setAmountToPay('');
       setPolicyAccepted(false);
     }
@@ -164,11 +170,27 @@ export default function CartDrawer({ open, onClose }) {
     setCheckoutStep('address');
   };
 
-  const handleProceedToPayment = () => {
+  const handleProceedToPayment = async () => {
     if (!selectedRegion || !selectedDistrict || !city.trim()) {
       setCheckoutError('Please provide all delivery details before continuing.');
       return;
     }
+
+    // Save or update phone in customer profile if provided
+    if (contactPhone.trim()) {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        if (u.phone !== contactPhone.trim()) {
+          const { data } = await api.patch('/auth/profile', { phone: contactPhone.trim() });
+          if (data?.user) {
+            localStorage.setItem('user', JSON.stringify({ ...u, phone: data.user.phone }));
+          }
+        }
+      } catch (_) {
+        // Non-blocking
+      }
+    }
+
     setCheckoutError('');
     // Pre-fill amount with full total so user can adjust down
     setAmountToPay(totalPrice.toFixed(2));
@@ -477,6 +499,29 @@ export default function CartDrawer({ open, onClose }) {
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                   />
+                </div>
+
+                {/* Delivery & MoMo Mobile Number */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700" htmlFor="drawer-contact-phone">
+                      Contact & MoMo Mobile Phone
+                    </label>
+                    <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      🇬🇭 Ghana (+233)
+                    </span>
+                  </div>
+                  <input
+                    className="block w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs font-mono focus:outline-none focus:bg-white focus:border-blue-600 transition-colors placeholder:text-slate-400"
+                    id="drawer-contact-phone"
+                    placeholder="e.g. 024 123 4567 / 055 987 6543"
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Used for courier delivery coordination and Paystack Mobile Money payments.
+                  </p>
                 </div>
               </div>
 

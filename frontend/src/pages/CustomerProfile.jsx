@@ -15,7 +15,12 @@ export default function CustomerProfile() {
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'UNPAID' | 'PAID'
   const navigate = useNavigate();
 
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profilePhone, setProfilePhone] = useState(user?.phone || '');
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileNotice, setProfileNotice] = useState('');
 
   useEffect(() => {
     if (!user || user.role !== 'CUSTOMER') {
@@ -67,6 +72,27 @@ export default function CustomerProfile() {
     navigate('/');
   };
 
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setError('');
+    try {
+      const { data } = await api.patch('/auth/profile', {
+        phone: profilePhone.trim() || null,
+        name: profileName.trim() || null,
+      });
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setProfileModalOpen(false);
+      setProfileNotice('Profile updated successfully!');
+      setTimeout(() => setProfileNotice(''), 3500);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     if (statusFilter === 'ALL') return orders;
     if (statusFilter === 'UNPAID') {
@@ -86,6 +112,14 @@ export default function CustomerProfile() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
+        {/* Notice Banner */}
+        {profileNotice && (
+          <div className="p-4 rounded-2xl border bg-emerald-50 border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">check_circle</span>
+            <span>{profileNotice}</span>
+          </div>
+        )}
+
         {/* Paystack status notification banner */}
         {paystackBanner && (
           <div
@@ -115,21 +149,50 @@ export default function CustomerProfile() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-sm">
-                {user.email.charAt(0).toUpperCase()}
+                {(user.name || user.email).charAt(0).toUpperCase()}
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] text-blue-700 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                     Verified Customer
                   </span>
+                  {user.auth_provider && user.auth_provider !== 'LOCAL' && (
+                    <span className="text-[10px] text-indigo-700 font-bold uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                      {user.auth_provider} Sign-In
+                    </span>
+                  )}
                   <span className="text-xs text-slate-400">ID: #{user.id}</span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                  {user.email}
+                  {user.name ? `${user.name}` : user.email}
                 </h1>
-                <p className="text-xs text-slate-500">
-                  Manage your active hire purchase plans, delivery tracking, and payment history.
-                </p>
+                {user.name && (
+                  <p className="text-xs text-slate-500">{user.email}</p>
+                )}
+
+                {/* Mobile Phone Badge & Edit Button */}
+                <div className="flex flex-wrap items-center gap-2 pt-1.5 text-xs">
+                  <span className="text-slate-700 font-semibold flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl">
+                    <span className="material-symbols-outlined text-[16px] text-blue-600">smartphone</span>
+                    {user.phone ? (
+                      <span>Mobile: <strong className="font-mono text-slate-900">{user.phone}</strong></span>
+                    ) : (
+                      <span className="text-slate-400 italic">No mobile number added</span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setProfilePhone(user.phone || '');
+                      setProfileName(user.name || '');
+                      setProfileModalOpen(true);
+                    }}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">edit</span>
+                    {user.phone ? 'Edit' : '+ Add Mobile'}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -150,6 +213,66 @@ export default function CustomerProfile() {
             </div>
           </div>
         </div>
+
+        {/* Profile Edit Modal */}
+        {profileModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <h3 className="font-bold text-slate-900 text-base">Update Customer Profile</h3>
+                <button onClick={() => setProfileModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="e.g. Kwame Mensah"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Ghana Mobile Number (for MoMo & delivery)
+                  </label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="e.g. 0244123456 or +233244123456"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Used for Paystack mobile money prompts & order tracking.</p>
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProfileModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={profileLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition disabled:opacity-50"
+                  >
+                    {profileLoading ? 'Saving...' : 'Save Profile'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Order History Container */}
         <div className="space-y-6">

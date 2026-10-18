@@ -147,8 +147,13 @@ export const getAllCustomers = async (req, res) => {
       select: {
         id: true,
         email: true,
+        name: true,
+        phone: true,
+        auth_provider: true,
+        avatar_url: true,
         role: true,
         status: true,
+        created_at: true,
       },
     });
     res.json(customers);

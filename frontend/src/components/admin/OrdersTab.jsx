@@ -53,10 +53,13 @@ export default function OrdersTab() {
 
   // Perform filtering
   const filteredOrders = orders.filter((order) => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch = 
-      String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.items || []).some(item => (item.product?.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+      String(order.id).toLowerCase().includes(q) ||
+      (order.user?.email || '').toLowerCase().includes(q) ||
+      (order.user?.name || '').toLowerCase().includes(q) ||
+      (order.user?.phone || '').toLowerCase().includes(q) ||
+      (order.items || []).some(item => (item.product?.name || '').toLowerCase().includes(q));
 
     let matchesDate = true;
     if (filterDate) {
@@ -254,12 +257,21 @@ export default function OrdersTab() {
                       <td className="px-5 py-3.5 text-xs text-slate-400 whitespace-nowrap">
                         {new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
-                      <td className="px-5 py-3.5 max-w-[160px] truncate">
-                        <span className="text-xs font-medium text-slate-200 block truncate" title={order.user?.email}>
-                          {order.user?.email || 'Unknown'}
+                      <td className="px-5 py-3.5 max-w-[170px] truncate">
+                        <span className="text-xs font-semibold text-slate-200 block truncate" title={order.user?.name || order.user?.email}>
+                          {order.user?.name || order.user?.email || 'Unknown'}
                         </span>
+                        {order.user?.phone ? (
+                          <span className="text-[11px] text-emerald-400 font-mono block truncate" title={`Phone: ${order.user.phone}`}>
+                            📞 {order.user.phone}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 font-mono block truncate" title={order.user?.email}>
+                            {order.user?.email}
+                          </span>
+                        )}
                         {order.pickup_city && (
-                          <span className="text-[10px] text-slate-500 block truncate">📍 {order.pickup_city}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">📍 {order.pickup_city}</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 max-w-[220px]">

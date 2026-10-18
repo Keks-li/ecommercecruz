@@ -8,6 +8,9 @@ export const getAllOrders = async (req, res) => {
           select: {
             id: true,
             email: true,
+            name: true,
+            phone: true,
+            auth_provider: true,
           },
         },
         items: {
@@ -49,6 +52,9 @@ export const getOrderById = async (req, res) => {
           select: {
             id: true,
             email: true,
+            name: true,
+            phone: true,
+            auth_provider: true,
           },
         },
         items: {
@@ -100,7 +106,7 @@ export const updateOrderStatus = async (req, res) => {
       data: { status },
       include: {
         user: {
-          select: { email: true },
+          select: { email: true, name: true, phone: true },
         },
       },
     });
