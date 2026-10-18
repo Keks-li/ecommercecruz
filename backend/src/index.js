@@ -9,10 +9,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Parse comma-separated allowed origins from env, e.g.:
-//   ALLOWED_ORIGINS=https://cruzaro.pages.dev,https://www.cruzaro.com
+//   ALLOWED_ORIGINS=https://cruzaro.pages.dev,https://*.pages.dev,https://www.cruzaro.com
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
 // Middleware
@@ -22,7 +22,18 @@ app.use(
     origin: (origin, callback) => {
       // Allow server-to-server / health-check requests (no Origin header)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      const cleanOrigin = origin.replace(/\/+$/, '');
+      if (
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes(cleanOrigin) ||
+        allowedOrigins.some((allowed) => {
+          if (allowed.includes('*')) {
+            const regex = new RegExp('^' + allowed.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+            return regex.test(cleanOrigin);
+          }
+          return false;
+        })
+      ) {
         return callback(null, true);
       }
       callback(new Error(`CORS: origin ${origin} not allowed`));

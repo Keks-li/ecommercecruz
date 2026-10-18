@@ -1,10 +1,17 @@
 import axios from 'axios';
 
+// Normalize API baseURL for production (Cloudflare Pages) & local development
+const getNormalizedBaseURL = (url) => {
+  if (!url) return '/api';
+  let cleaned = url.trim().replace(/\/+$/, '');
+  if (cleaned.startsWith('http') && !cleaned.endsWith('/api')) {
+    cleaned = `${cleaned}/api`;
+  }
+  return cleaned;
+};
+
 const api = axios.create({
-  // In production (Cloudflare Pages) VITE_API_URL is set to the full backend URL
-  // e.g. https://cruzaro-backend.onrender.com/api
-  // In local dev the Vite proxy rewrites /api → http://localhost:5000/api
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: getNormalizedBaseURL(import.meta.env.VITE_API_URL),
 });
 
 // Attach JWT token from localStorage on every request

@@ -281,7 +281,10 @@ DATABASE_URL=postgresql://postgres.nmknkskyzmlocnjbrtub:<password>@aws-0-eu-west
 | `AuditLog` | |
 | `_prisma_migrations` | Prisma-compatible tracking table |
 
-> ⚠️ RLS (Row Level Security) is **disabled** on all tables. Safe because the backend connects via the service-role/direct connection string — not the anon key. Do NOT enable RLS without adding appropriate policies first.
+> 🔒 RLS (Row Level Security) is **ENABLED** on all 9 tables. Protected with policies:
+> - `service_role` & `postgres` (backend): Full access.
+> - `anon` & `authenticated` (public): Read-only access to active products (`status = 'ACTIVE'`) and payment rules. All other tables (`User`, `Order`, `PaymentTransaction`, `AuditLog`, `CancellationRequest`, etc.) are blocked from direct PostgREST access.
+> - Database Advisor security audit: **0 lints / passed**.
 
 ---
 
