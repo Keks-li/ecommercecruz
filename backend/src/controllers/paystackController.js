@@ -159,7 +159,7 @@ export async function processSuccessfulPayment({
         user_id: userId || currentOrder.user_id,
         action: 'PAYSTACK_PAYMENT_SUCCESS',
         entity: 'Order',
-        entityId: parsedOrderId,
+        entity_id: parsedOrderId,
         old_value: JSON.stringify({
           amountPaid: currentOrder.amount_paid,
           paymentStatus: currentOrder.payment_status,
@@ -374,7 +374,7 @@ export const initializeCheckoutPayment = async (req, res) => {
         user_id: userId,
         action: 'PAYSTACK_CHECKOUT_INITIALIZED',
         entity: 'Order',
-        entityId: order.id,
+        entity_id: order.id,
         new_value: JSON.stringify({
           reference,
           amount: parsedAmountPaid,
