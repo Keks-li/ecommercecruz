@@ -16,7 +16,58 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .filter(Boolean);
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    // Allow DNS prefetching — helps browsers on slow mobile networks (MTN, etc.)
+    // resolve resources faster by pre-resolving hostnames
+    dnsPrefetchControl: { allow: true },
+
+    // Content Security Policy — explicitly permit all frontend resource origins
+    // (Google Fonts, Material Icons, Paystack inline JS, Cloudinary images)
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://js.paystack.co',
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://fonts.googleapis.com',
+        ],
+        fontSrc: [
+          "'self'",
+          'https://fonts.gstatic.com',
+          'https://fonts.googleapis.com',
+        ],
+        imgSrc: [
+          "'self'",
+          'data:',
+          'https://res.cloudinary.com',
+          'https://*.cloudinary.com',
+        ],
+        connectSrc: [
+          "'self'",
+          'https://api.paystack.co',
+          'https://api.cruzaroent.com',
+          'https://ecommercecruz.onrender.com',
+        ],
+        frameSrc: [
+          "'self'",
+          'https://checkout.paystack.com',
+        ],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+
+    // Cross-Origin headers — allow Cloudflare Pages to embed backend responses
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+  })
+);
 app.use(
   cors({
     origin: (origin, callback) => {
