@@ -450,11 +450,13 @@ function OrderCard({ order, onPaymentSuccess }) {
       const { data } = await api.post(`/orders/${order.id}/paystack/initialize`, {
         amount: num,
         email: userObj.email,
+        phone: userObj.phone,
       });
 
       // 2. Launch Paystack inline checkout or hosted redirect
       await payWithPaystack({
         email: userObj.email,
+        phone: userObj.phone,
         amountInCedis: num,
         reference: data.reference,
         accessCode: data.access_code,

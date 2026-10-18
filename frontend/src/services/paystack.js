@@ -34,6 +34,7 @@ export async function getPaystackPublicKey() {
  */
 export async function payWithPaystack({
   email,
+  phone,
   amountInCedis,
   reference,
   accessCode,
@@ -45,8 +46,9 @@ export async function payWithPaystack({
   try {
     const key = await getPaystackPublicKey();
     const amountInPesewas = Math.round(parseFloat(amountInCedis) * 100);
-    const resolvedEmail =
-      email || JSON.parse(localStorage.getItem('user') || '{}').email || '';
+    const resolvedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const resolvedEmail = email || resolvedUser.email || '';
+    const resolvedPhone = phone || resolvedUser.phone || '';
 
     // If PaystackPop is available in window and public key exists, use seamless inline popup
     if (typeof window !== 'undefined' && window.PaystackPop && key && key !== 'pk_test_placeholder_cruzaro_test_public_key') {
@@ -55,7 +57,19 @@ export async function payWithPaystack({
         email: resolvedEmail,
         amount: amountInPesewas,
         currency: 'GHS',
+        channels: ['mobile_money', 'card'],
         ref: reference,
+        ...(resolvedPhone ? { phone: resolvedPhone } : {}),
+        metadata: {
+          phone: resolvedPhone || undefined,
+          custom_fields: resolvedPhone ? [
+            {
+              display_name: 'Mobile Money Number',
+              variable_name: 'mobile_money_number',
+              value: resolvedPhone,
+            }
+          ] : [],
+        },
         ...(accessCode ? { access_code: accessCode } : {}),
         callback: function (response) {
           // Paystack payment approved

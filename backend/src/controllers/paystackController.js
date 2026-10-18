@@ -215,11 +215,13 @@ export const initializeCheckoutPayment = async (req, res) => {
     const { items, pickup_region, pickup_district, pickup_city, amount_paid, email: bodyEmail } = req.body;
     const userId = req.user.id;
 
-    // Resolve user email reliably (from req.user, request body, or database fallback)
+    // Resolve user email and phone reliably
     let userEmail = req.user.email || bodyEmail;
-    if (!userEmail) {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-      userEmail = dbUser?.email;
+    let userPhone = req.body.phone;
+    if (!userEmail || !userPhone) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, phone: true } });
+      if (!userEmail) userEmail = dbUser?.email;
+      if (!userPhone) userPhone = dbUser?.phone;
     }
 
     if (!userEmail) {
@@ -332,6 +334,7 @@ export const initializeCheckoutPayment = async (req, res) => {
       metadata: {
         order_id: order.id,
         user_id: userId,
+        phone: userPhone || undefined,
         payment_type: 'INITIAL',
         intended_amount: parsedAmountPaid,
         custom_fields: [
@@ -345,6 +348,11 @@ export const initializeCheckoutPayment = async (req, res) => {
             variable_name: 'customer_id',
             value: String(userId),
           },
+          ...(userPhone ? [{
+            display_name: 'Mobile Money Number',
+            variable_name: 'mobile_money_number',
+            value: userPhone,
+          }] : []),
         ],
       },
       channels: ['card', 'mobile_money'],
@@ -457,6 +465,12 @@ export const initializeBalancePayment = async (req, res) => {
       process.env.PAYSTACK_CALLBACK_URL ||
       `${req.protocol}://${req.get('host')}/profile`;
 
+    let userPhone = req.body.phone;
+    if (!userPhone) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
+      userPhone = dbUser?.phone;
+    }
+
     const paystackPayload = {
       email: userEmail,
       amount: amountInPesewas,
@@ -466,6 +480,7 @@ export const initializeBalancePayment = async (req, res) => {
       metadata: {
         order_id: order.id,
         user_id: userId,
+        phone: userPhone || undefined,
         payment_type: 'BALANCE',
         intended_amount: parsedAmount,
         custom_fields: [
@@ -474,6 +489,11 @@ export const initializeBalancePayment = async (req, res) => {
             variable_name: 'order_reference',
             value: `#CRZ-${order.id.toString().padStart(5, '0')}`,
           },
+          ...(userPhone ? [{
+            display_name: 'Mobile Money Number',
+            variable_name: 'mobile_money_number',
+            value: userPhone,
+          }] : []),
         ],
       },
       channels: ['card', 'mobile_money'],

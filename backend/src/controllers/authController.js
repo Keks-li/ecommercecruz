@@ -147,7 +147,25 @@ export const login = async (req, res) => {
  */
 export const socialLogin = async (req, res) => {
   try {
-    const { provider, email, name, avatarUrl } = req.body;
+    let { provider, email, name, avatarUrl, credential } = req.body;
+
+    // Decode Google JWT ID token if provided directly from Google Identity Services
+    if (credential && (!email || !provider)) {
+      try {
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload.email) {
+            email = payload.email;
+            name = name || payload.name;
+            avatarUrl = avatarUrl || payload.picture;
+            provider = 'GOOGLE';
+          }
+        }
+      } catch (tokenErr) {
+        console.warn('Could not parse Google ID token:', tokenErr);
+      }
+    }
 
     if (!email || !provider) {
       return res.status(400).json({ error: 'Email and provider are required for social login' });
@@ -192,7 +210,7 @@ export const socialLogin = async (req, res) => {
     const token = generateToken(user.id, user.role, user.email);
 
     return res.json({
-      message: `Signed in successfully with ${provider}`,
+      message: `Signed in successfully with ${normalizedProvider}`,
       user: {
         id: user.id,
         email: user.email,
@@ -203,6 +221,7 @@ export const socialLogin = async (req, res) => {
         auth_provider: user.auth_provider,
         avatar_url: user.avatar_url,
       },
+      isProfileIncomplete: !user.phone || !user.name,
       token,
     });
   } catch (error) {
@@ -220,27 +239,31 @@ export const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const { phone, name } = req.body;
 
-    const trimmedPhone = phone ? phone.trim() : null;
-    const trimmedName = name ? name.trim() : null;
+    const updateData = {};
 
-    if (trimmedPhone) {
-      const existingPhone = await prisma.user.findFirst({
-        where: {
-          phone: trimmedPhone,
-          NOT: { id: userId },
-        },
-      });
-      if (existingPhone) {
-        return res.status(400).json({ error: 'This phone number is already registered to another account' });
+    if (phone !== undefined) {
+      const trimmedPhone = phone ? phone.trim() : null;
+      if (trimmedPhone) {
+        const existingPhone = await prisma.user.findFirst({
+          where: {
+            phone: trimmedPhone,
+            NOT: { id: userId },
+          },
+        });
+        if (existingPhone) {
+          return res.status(400).json({ error: 'This phone number is already registered to another account' });
+        }
       }
+      updateData.phone = trimmedPhone;
+    }
+
+    if (name !== undefined) {
+      updateData.name = name ? name.trim() : null;
     }
 
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: {
-        phone: trimmedPhone,
-        name: trimmedName,
-      },
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -259,3 +282,14 @@ export const updateProfile = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+/**
+ * GET /api/auth/config
+ * Provides public client authentication configuration (such as Google OAuth Client ID)
+ */
+export const getAuthConfig = async (req, res) => {
+  return res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '',
+  });
+};
+

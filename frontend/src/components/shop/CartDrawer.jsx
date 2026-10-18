@@ -230,11 +230,13 @@ export default function CartDrawer({ open, onClose }) {
         pickup_city: city.trim(),
         amount_paid: numAmount,
         email: userObj.email,
+        phone: contactPhone || userObj.phone,
       });
 
       // Launch Paystack inline checkout or redirect
       await payWithPaystack({
         email: userObj.email,
+        phone: contactPhone || userObj.phone,
         amountInCedis: numAmount,
         reference: data.paystack?.reference,
         accessCode: data.paystack?.access_code,
