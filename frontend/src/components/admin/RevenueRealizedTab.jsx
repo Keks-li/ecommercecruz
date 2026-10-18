@@ -430,8 +430,16 @@ export default function RevenueRealizedTab({ onNavigateTab }) {
                         <td className="px-4 py-3 text-slate-300 max-w-[160px] truncate" title={tx.customerEmail}>
                           {tx.customerEmail}
                         </td>
-                        <td className="px-4 py-3 font-semibold uppercase text-slate-400">
-                          {tx.paymentMethod}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                              tx.paymentMethod === 'PAYSTACK'
+                                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {tx.paymentMethod}
+                          </span>
                         </td>
                         <td className="px-4 py-3 font-mono text-slate-500 text-[11px]">
                           {tx.reference || '—'}

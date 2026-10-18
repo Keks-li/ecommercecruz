@@ -132,9 +132,17 @@ All routes are prefixed with `/api`.
 | GET | `/api/products/:id` | None | Product detail |
 | GET | `/api/products/payment-policy` | None | Active default payment rules policy |
 | POST | `/api/orders` | protect | Place order |
+| POST | `/api/orders/paystack/initialize` | protect | Initialize Paystack checkout session |
 | GET | `/api/orders` | protect | Customer orders |
-| POST | `/api/orders/:id/pay` | protect | Submit payment |
+| POST | `/api/orders/:id/pay` | protect | Submit payment (manual fallback) |
+| POST | `/api/orders/:id/paystack/initialize` | protect | Initialize Paystack balance payment |
 | POST | `/api/orders/:id/cancel` | protect | Request cancellation |
+| GET | `/api/paystack/public-key` | None | Public key for Paystack Inline JS |
+| POST | `/api/paystack/initialize-checkout` | protect | Initialize Paystack checkout session |
+| POST | `/api/paystack/orders/:id/initialize` | protect | Initialize Paystack balance payment |
+| GET | `/api/paystack/verify/:reference` | protect | Verify Paystack transaction with API |
+| POST | `/api/webhooks/paystack` | None | Paystack webhook receiver (HMAC-SHA512) |
+| POST | `/api/paystack/webhook` | None | Paystack webhook receiver alias |
 | GET | `/api/admin/stats` | protect+isAdmin | Dashboard statistics & metrics |
 | GET | `/api/admin/revenue-realized` | protect+isAdmin | Realized revenue, cash inflows & ledger |
 | GET | `/api/admin/users` | protect+isAdmin | List all users |
@@ -207,7 +215,12 @@ All routes are prefixed with `/api`.
 7. **Payment rules** — Attach a `PaymentRule` to a product. If none attached, use the rule where `is_default = true`.
 8. **Cloudinary** — Product images uploaded via multipart. `image_url` stores the Cloudinary secure URL.
 9. **Stock** — Decrement `stock` on order placement. Never allow orders for out-of-stock items.
-10. **Paystack (Planned)** — Paystack is the chosen payment gateway for v2. Do NOT implement a different gateway. When the Paystack account is ready, integration goes in `orderController.js` and a new `paystackRoutes.js`. Webhook verification must use the Paystack secret key via env var `PAYSTACK_SECRET_KEY`.
+10. **Paystack Payment Gateway** — Paystack is the primary online payment gateway for Ghana (`GHS`). Security measures strictly enforced:
+    - **Webhook Verification:** Cryptographic HMAC-SHA512 verification using `crypto.timingSafeEqual` against `process.env.PAYSTACK_SECRET_KEY` on raw request body (`req.rawBody`).
+    - **Secret Key Isolation:** `PAYSTACK_SECRET_KEY` stays strictly on backend; never exposed to client or API logs.
+    - **Idempotency Protection:** Double-check transaction references in `PaymentTransaction` before crediting to prevent double-crediting across webhooks and browser callbacks.
+    - **Server-Side Validation:** Amount (in pesewas) and currency (`GHS`) verified against database prices and order balance; client-side amounts are never trusted.
+    - **Stock Safeguard:** Product stock decremented atomically upon order creation/placement (Rule 9).
 11. **RESTful conventions** — Correct HTTP verbs. No RPC-style routes unless already established.
 
 ---
@@ -224,7 +237,9 @@ All env vars live in `backend/.env` (local dev). Production env vars are set in 
 | `JWT_SECRET` | Yes | Strong random 128-char hex secret for JWT signing |
 | `CLOUDINARY_URL` | Yes | `cloudinary://<key>:<secret>@<cloud_name>` |
 | `ALLOWED_ORIGINS` | Yes (prod) | Comma-separated allowed CORS origins. Empty = allow all (local dev only) |
-| `PAYSTACK_SECRET_KEY` | Planned | Paystack webhook secret (v2) |
+| `PAYSTACK_SECRET_KEY` | Yes (payments) | Paystack Secret Key (`sk_test_...` or `sk_live_...`) for API calls & HMAC webhook verification |
+| `PAYSTACK_PUBLIC_KEY` | Yes (payments) | Paystack Public Key (`pk_test_...` or `pk_live_...`) for Paystack Inline JS popup |
+| `PAYSTACK_CALLBACK_URL` | Optional | Customer redirect return URL after hosted payment (default: `/profile`) |
 
 ### DATABASE_URL formats
 

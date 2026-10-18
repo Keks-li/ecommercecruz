@@ -52,6 +52,12 @@ export const createOrder = async (req, res) => {
       const qty = parseInt(item.qty, 10);
       if (isNaN(qty) || qty <= 0) return res.status(400).json({ error: 'Quantity must be a positive integer' });
 
+      if (dbProduct.stock < qty) {
+        return res.status(400).json({
+          error: `Insufficient stock for '${dbProduct.name}'. Available: ${dbProduct.stock}, requested: ${qty}`,
+        });
+      }
+
       totalPrice += dbProduct.price * qty;
       validatedItems.push({ product_id: dbProduct.id, quantity: qty, price: dbProduct.price });
     }
@@ -86,6 +92,14 @@ export const createOrder = async (req, res) => {
           price: item.price,
         })),
       });
+
+      // Decrement stock for purchased items
+      for (const item of validatedItems) {
+        await tx.product.update({
+          where: { id: item.product_id },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
 
       // Log initial payment transaction
       await tx.paymentTransaction.create({

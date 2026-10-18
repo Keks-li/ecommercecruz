@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import { payWithPaystack } from '../services/paystack';
 import Navbar from '../components/shop/Navbar';
 import CartDrawer from '../components/shop/CartDrawer';
 import Footer from '../components/shop/Footer';
@@ -9,6 +10,7 @@ export default function CustomerProfile() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [paystackBanner, setPaystackBanner] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'UNPAID' | 'PAID'
   const navigate = useNavigate();
@@ -33,6 +35,30 @@ export default function CustomerProfile() {
     };
 
     fetchOrders();
+
+    // Check if customer returned from Paystack checkout redirect
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('reference') || params.get('trxref');
+    if (ref) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      const verifyReturnPayment = async () => {
+        try {
+          const { data } = await api.get(`/paystack/verify/${encodeURIComponent(ref)}`);
+          setPaystackBanner({
+            type: 'SUCCESS',
+            message: `Paystack payment verified successfully (Ref: ${ref})! Your order balance has been credited.`,
+          });
+          const { data: refreshed } = await api.get('/orders');
+          setOrders(refreshed);
+        } catch (vErr) {
+          setPaystackBanner({
+            type: 'ERROR',
+            message: vErr.response?.data?.error || 'Payment verification encountered an issue. Please contact support.',
+          });
+        }
+      };
+      verifyReturnPayment();
+    }
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = () => {
@@ -60,6 +86,30 @@ export default function CustomerProfile() {
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
+        {/* Paystack status notification banner */}
+        {paystackBanner && (
+          <div
+            className={`p-4 rounded-2xl border text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs ${
+              paystackBanner.type === 'SUCCESS'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-[20px]">
+                {paystackBanner.type === 'SUCCESS' ? 'check_circle' : 'error'}
+              </span>
+              <span>{paystackBanner.message}</span>
+            </div>
+            <button
+              onClick={() => setPaystackBanner(null)}
+              className="text-slate-400 hover:text-slate-700"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        )}
+
         {/* Top Header Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
@@ -271,20 +321,50 @@ function OrderCard({ order, onPaymentSuccess }) {
     setPaying(true);
     setPayError('');
     try {
-      const { data } = await api.post(`/orders/${order.id}/pay`, { amount: num });
-      setPaySuccess(true);
-      onPaymentSuccess(data);
-      setTimeout(() => {
-        setPayOpen(false);
-        setPaySuccess(false);
-        setPayAmount('');
-      }, 1800);
+      // 1. Initialize Paystack balance payment session
+      const { data } = await api.post(`/orders/${order.id}/paystack/initialize`, { amount: num });
+
+      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // 2. Launch Paystack inline checkout or hosted redirect
+      await payWithPaystack({
+        email: userObj.email,
+        amountInCedis: num,
+        reference: data.reference,
+        accessCode: data.access_code,
+        authorizationUrl: data.authorization_url,
+        onSuccess: async (paystackRes) => {
+          try {
+            const { data: verified } = await api.get(`/paystack/verify/${encodeURIComponent(paystackRes.reference)}`);
+            setPaySuccess(true);
+            onPaymentSuccess(verified.order || order);
+            setTimeout(() => {
+              setPayOpen(false);
+              setPaySuccess(false);
+              setPayAmount('');
+            }, 1800);
+          } catch (vErr) {
+            setPayError(vErr.response?.data?.error || 'Verification pending. Please refresh your orders.');
+          } finally {
+            setPaying(false);
+          }
+        },
+        onClose: () => {
+          setPaying(false);
+          setPayError('Payment session cancelled by user.');
+        },
+        onError: (pErr) => {
+          setPaying(false);
+          setPayError(pErr.message || 'Payment initiation failed.');
+        },
+      });
     } catch (err) {
-      setPayError(err.response?.data?.error || 'Payment failed. Please try again.');
-    } finally {
       setPaying(false);
+      setPayError(err.response?.data?.error || err.message || 'Failed to initialize Paystack payment.');
     }
   };
+
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
     <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 space-y-5 transition-all shadow-sm">
@@ -470,7 +550,7 @@ function OrderCard({ order, onPaymentSuccess }) {
                   <button
                     onClick={handlePay}
                     disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
-                    className="w-full py-3 bg-slate-900 hover:bg-blue-600 disabled:opacity-40 text-white font-bold rounded-xl text-xs transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full py-3 bg-[#0ba4db] hover:bg-[#0991c2] disabled:opacity-40 text-white font-bold rounded-xl text-xs transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
                   >
                     {paying ? (
                       <>
@@ -478,14 +558,27 @@ function OrderCard({ order, onPaymentSuccess }) {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
-                        <span>Recording Payment...</span>
+                        <span>Connecting Secure Paystack...</span>
                       </>
                     ) : (
-                      <span>
-                        Confirm Payment of GH₵ {parseFloat(payAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px]">lock</span>
+                        <span>
+                          Pay GH₵ {parseFloat(payAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} via Paystack
+                        </span>
+                      </div>
                     )}
                   </button>
+
+                  <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 pt-1">
+                    <span className="font-semibold text-slate-600">MTN MoMo</span>
+                    <span>•</span>
+                    <span className="font-semibold text-slate-600">Telecel Cash</span>
+                    <span>•</span>
+                    <span className="font-semibold text-slate-600">AirtelTigo</span>
+                    <span>•</span>
+                    <span className="font-semibold text-slate-600">Card</span>
+                  </div>
                 </>
               )}
             </div>
@@ -495,6 +588,66 @@ function OrderCard({ order, onPaymentSuccess }) {
         <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl font-semibold">
           <span className="material-symbols-outlined text-[18px]">verified</span>
           <span>Order fully paid. Thank you!</span>
+        </div>
+      )}
+
+      {/* Transaction History & Receipts */}
+      {order.transactions && order.transactions.length > 0 && (
+        <div className="pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 hover:text-slate-900 transition py-1"
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-blue-600">receipt_long</span>
+              Payment Receipts & Log ({order.transactions.length})
+            </span>
+            <span className="material-symbols-outlined text-[16px] text-slate-400">
+              {historyOpen ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
+
+          {historyOpen && (
+            <div className="mt-3 space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              {order.transactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-slate-100 text-xs"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                          tx.payment_method === 'PAYSTACK'
+                            ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        {tx.payment_method}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-500">
+                        {tx.reference || `TX-#${tx.id}`}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {new Date(tx.created_at).toLocaleString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {tx.note ? ` • ${tx.note}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right font-bold text-slate-900 font-display">
+                    GH₵ {tx.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -288,7 +288,18 @@ export default function OverdueTab() {
                 {historyData.transactions?.map(tx => (
                   <div key={tx.id} className={`flex justify-between items-center p-4 rounded-xl border ${tx.amount < 0 ? 'bg-rose-500/5 border-rose-500/20' : 'bg-slate-900/60 border-slate-800'}`}>
                     <div>
-                      <p className="text-xs font-semibold text-slate-400 uppercase">{tx.payment_method}</p>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                            tx.payment_method === 'PAYSTACK'
+                              ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          {tx.payment_method}
+                        </span>
+                        {tx.reference && <span className="font-mono text-slate-500 text-[10px]">ref: {tx.reference}</span>}
+                      </div>
                       {tx.note && <p className="text-xs text-slate-500 mt-0.5">{tx.note}</p>}
                       <p className="text-xs text-slate-600 mt-0.5">{new Date(tx.created_at).toLocaleString()}</p>
                     </div>

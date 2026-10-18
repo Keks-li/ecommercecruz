@@ -30,7 +30,13 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -38,11 +44,16 @@ import adminProductRoutes from './routes/adminProductRoutes.js';
 import adminOrderRoutes from './routes/adminOrderRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
+import paystackRoutes from './routes/paystackRoutes.js';
+import { handleWebhook } from './controllers/paystackController.js';
 
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Backend is running' });
 });
+
+// Paystack webhook endpoint (dedicated path per PRD/architecture specification)
+app.post('/api/webhooks/paystack', handleWebhook);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -50,6 +61,7 @@ app.use('/api/admin/products', adminProductRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/paystack', paystackRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {

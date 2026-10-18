@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import api from '../../services/api';
+import { payWithPaystack } from '../../services/paystack';
 
 const regions = {
   "greater-accra": ["Accra Metropolis", "Tema Metropolis", "Ga East", "Ga West"],
@@ -197,7 +198,8 @@ export default function CartDrawer({ open, onClose }) {
         qty: item.qty
       }));
 
-      const { data } = await api.post('/orders', {
+      // Initialize Paystack checkout session
+      const { data } = await api.post('/paystack/initialize-checkout', {
         items: orderItems,
         pickup_region: selectedRegion,
         pickup_district: selectedDistrict,
@@ -205,12 +207,41 @@ export default function CartDrawer({ open, onClose }) {
         amount_paid: numAmount
       });
 
-      clearCart();
-      setCheckoutSuccess(data);
+      const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // Launch Paystack inline checkout or redirect
+      await payWithPaystack({
+        email: userObj.email,
+        amountInCedis: numAmount,
+        reference: data.paystack?.reference,
+        accessCode: data.paystack?.access_code,
+        authorizationUrl: data.paystack?.authorization_url,
+        onSuccess: async (paystackRes) => {
+          try {
+            // Verify payment and record transaction
+            const { data: verified } = await api.get(`/paystack/verify/${encodeURIComponent(paystackRes.reference)}`);
+            clearCart();
+            setCheckoutSuccess(verified.order || data.order);
+          } catch (vErr) {
+            console.error('Verification error:', vErr);
+            clearCart();
+            setCheckoutSuccess(data.order);
+          } finally {
+            setCheckoutLoading(false);
+          }
+        },
+        onClose: () => {
+          setCheckoutLoading(false);
+          setCheckoutError('Payment window was closed. Your order was created in your account. You can complete payment at any time from your profile.');
+        },
+        onError: (pErr) => {
+          setCheckoutLoading(false);
+          setCheckoutError(pErr.message || 'Payment initialization failed.');
+        }
+      });
     } catch (err) {
-      setCheckoutError(err.response?.data?.error || 'Failed to process order. Please try again.');
-    } finally {
       setCheckoutLoading(false);
+      setCheckoutError(err.response?.data?.error || err.message || 'Failed to process order. Please try again.');
     }
   };
 
@@ -633,7 +664,7 @@ export default function CartDrawer({ open, onClose }) {
                 id="place-order-btn"
                 onClick={handlePlaceOrder}
                 disabled={checkoutLoading || !amountToPay || parseFloat(amountToPay) <= 0 || !policyAccepted}
-                className="w-full bg-slate-900 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-200 shadow-sm active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                className="w-full bg-[#0ba4db] hover:bg-[#0991c2] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-200 shadow-sm active:scale-[0.98] text-sm flex items-center justify-center gap-2"
               >
                 {checkoutLoading ? (
                   <>
@@ -641,14 +672,30 @@ export default function CartDrawer({ open, onClose }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
-                    <span>Processing Order...</span>
+                    <span>Connecting Secure Paystack Checkout...</span>
                   </>
                 ) : (
-                  <span>
-                    Pay GH₵ {parseFloat(amountToPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} & Place Order
-                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[18px]">lock</span>
+                    <span>
+                      Pay GH₵ {parseFloat(amountToPay || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} via Paystack
+                    </span>
+                  </div>
                 )}
               </button>
+
+              <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 py-1">
+                <span className="inline-flex items-center gap-1 font-semibold text-slate-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  MTN MoMo
+                </span>
+                <span>•</span>
+                <span className="font-semibold text-slate-600">Telecel Cash</span>
+                <span>•</span>
+                <span className="font-semibold text-slate-600">AirtelTigo</span>
+                <span>•</span>
+                <span className="font-semibold text-slate-600">Debit Card</span>
+              </div>
 
               {!policyAccepted && (
                 <p className="text-[11px] text-center text-slate-400">

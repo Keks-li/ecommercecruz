@@ -320,7 +320,15 @@ export default function OrderDetailsModal({ orderId, initialOrder = null, onClos
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-200 uppercase">{tx.payment_method}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                              tx.payment_method === 'PAYSTACK'
+                                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                                : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {tx.payment_method}
+                          </span>
                           {tx.reference && <span className="font-mono text-slate-500 text-[10px]">ref: {tx.reference}</span>}
                         </div>
                         {tx.note && <p className="text-slate-400 text-[11px] mt-0.5">{tx.note}</p>}
