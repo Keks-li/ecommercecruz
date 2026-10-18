@@ -1,0 +1,32 @@
+name: Render Backend 24/7 Keep-Alive
+
+# Pings your Render.com free-tier backend every 13 minutes
+# to prevent spinning down after 15 minutes of inactivity.
+
+on:
+  schedule:
+    # Runs every 13 minutes (cron format)
+    - cron: '*/13 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions dashboard
+
+jobs:
+  ping-render:
+    name: Ping Health Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend
+        env:
+          RENDER_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://cruzaro-backend.onrender.com' }}
+        run: |
+          CLEAN_URL="${RENDER_URL%/}"
+          TARGET_URL="${CLEAN_URL}/api/health"
+          echo "📡 Pinging Render backend at: ${TARGET_URL}"
+          
+          # Ping with 90-second timeout to allow waking up if asleep
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 90 "${TARGET_URL}" || echo "FAILED")
+          
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Render backend responded with HTTP 200 OK - Service kept active."
+          else
+            echo "⚠️ Response code: $STATUS (Backend may be warming up from cold start)."
+          fi
