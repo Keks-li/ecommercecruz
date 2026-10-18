@@ -58,9 +58,13 @@ import orderRoutes from './routes/orderRoutes.js';
 import paystackRoutes from './routes/paystackRoutes.js';
 import { handleWebhook } from './controllers/paystackController.js';
 
-// Routes
-app.get('/api/health', (req, res) => {
+// Health check & status endpoints
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'Backend is running' });
+});
+
+app.get('/', (req, res) => {
+  res.json({ status: 'Backend is running', message: 'Cruzaro API is live' });
 });
 
 // Paystack webhook endpoint (dedicated path per PRD/architecture specification)

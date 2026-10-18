@@ -70,6 +70,7 @@ export default function ProductDetails() {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -91,6 +92,7 @@ export default function ProductDetails() {
             Return to Store
           </button>
         </div>
+        <Footer />
       </div>
     );
   }
