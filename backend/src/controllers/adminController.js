@@ -193,3 +193,162 @@ export const toggleCustomerStatus = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getRevenueRealized = async (req, res) => {
+  try {
+    const { startDate, endDate, date } = req.query;
+
+    let dateFilter = {};
+    if (date) {
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      dateFilter = { created_at: { gte: start, lte: end } };
+    } else if (startDate || endDate) {
+      dateFilter.created_at = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.created_at.gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.created_at.lte = end;
+      }
+    }
+
+    // 1. Fetch transactions within scope
+    const transactions = await prisma.paymentTransaction.findMany({
+      where: { ...dateFilter },
+      include: {
+        order: {
+          select: {
+            id: true,
+            total_price: true,
+            amount_paid: true,
+            payment_status: true,
+            status: true,
+            user: { select: { id: true, email: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    // 2. Aggregate cash flow sums
+    let grossInflows = 0;
+    let totalRefunds = 0;
+    const methodBreakdown = {};
+
+    transactions.forEach((tx) => {
+      if (tx.amount > 0) {
+        grossInflows += tx.amount;
+        const method = tx.payment_method || 'MANUAL';
+        methodBreakdown[method] = (methodBreakdown[method] || 0) + tx.amount;
+      } else {
+        totalRefunds += Math.abs(tx.amount);
+      }
+    });
+
+    const netRealizedRevenue = grossInflows - totalRefunds;
+
+    // 3. Overall Order contracts & receivables
+    const ordersResult = await prisma.order.findMany({
+      select: {
+        id: true,
+        total_price: true,
+        amount_paid: true,
+        penalty_amount: true,
+        payment_status: true,
+      },
+    });
+
+    let totalContracted = 0;
+    let totalOutstanding = 0;
+    let totalPenalties = 0;
+    let fullyPaidCount = 0;
+    let partiallyPaidCount = 0;
+    let overdueCount = 0;
+
+    ordersResult.forEach((o) => {
+      totalContracted += o.total_price || 0;
+      totalPenalties += o.penalty_amount || 0;
+      const bal = Math.max(0, (o.total_price || 0) + (o.penalty_amount || 0) - (o.amount_paid || 0));
+      totalOutstanding += bal;
+
+      if (o.payment_status === 'PAID') fullyPaidCount++;
+      else if (o.payment_status === 'PARTIALLY_PAID') partiallyPaidCount++;
+      else if (o.payment_status === 'OVERDUE') overdueCount++;
+    });
+
+    const realizationRate = totalContracted > 0
+      ? Number(((grossInflows / totalContracted) * 100).toFixed(1))
+      : 100;
+
+    // 4. Daily timeline
+    const dailyMap = {};
+    transactions.forEach((tx) => {
+      const day = new Date(tx.created_at).toISOString().split('T')[0];
+      if (!dailyMap[day]) {
+        dailyMap[day] = { date: day, inflow: 0, outflow: 0, net: 0, count: 0 };
+      }
+      if (tx.amount > 0) {
+        dailyMap[day].inflow += tx.amount;
+      } else {
+        dailyMap[day].outflow += Math.abs(tx.amount);
+      }
+      dailyMap[day].net += tx.amount;
+      dailyMap[day].count += 1;
+    });
+
+    const dailyTrend = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+
+    // 5. Critical low stock inventory
+    const lowStockCount = await prisma.product.count({
+      where: { status: 'ACTIVE', stock: { lt: 5 } },
+    });
+    const lowStockProducts = await prisma.product.findMany({
+      where: { status: 'ACTIVE', stock: { lt: 5 } },
+      select: { id: true, name: true, unique_code: true, stock: true, image_url: true, price: true },
+      take: 6,
+    });
+
+    return res.json({
+      summary: {
+        netRealizedRevenue,
+        grossInflows,
+        totalRefunds,
+        totalContracted,
+        totalOutstanding,
+        totalPenalties,
+        realizationRate,
+        transactionCount: transactions.length,
+        fullyPaidCount,
+        partiallyPaidCount,
+        overdueCount,
+        lowStockCount,
+        lowStockProducts,
+      },
+      methodBreakdown,
+      dailyTrend,
+      transactions: transactions.map((tx) => ({
+        id: tx.id,
+        orderId: tx.order_id,
+        amount: tx.amount,
+        paymentMethod: tx.payment_method,
+        reference: tx.reference,
+        note: tx.note,
+        createdAt: tx.created_at,
+        customerEmail: tx.order?.user?.email || 'Unknown',
+        orderTotal: tx.order?.total_price || 0,
+        paymentStatus: tx.order?.payment_status || 'PENDING',
+      })),
+    });
+  } catch (error) {
+    console.error('Error calculating realized revenue:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

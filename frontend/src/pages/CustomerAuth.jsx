@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 
 export default function CustomerAuth() {
@@ -7,6 +7,7 @@ export default function CustomerAuth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
@@ -19,7 +20,7 @@ export default function CustomerAuth() {
     setError('');
     
     if (!isLogin && password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -35,133 +36,162 @@ export default function CustomerAuth() {
       // Navigate back
       navigate(redirect);
     } catch (err) {
-      setError(err.response?.data?.error || 'Authentication failed. Please try again.');
+      setError(err.response?.data?.error || 'Authentication failed. Please verify your credentials and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background glow effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#c7e74c]/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/3 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="relative w-full max-w-md my-8">
-        {/* Logo/Brand Header */}
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex items-center justify-center px-4 relative overflow-hidden py-12">
+      <div className="relative w-full max-w-md my-4 z-10">
+        
+        {/* Brand Header */}
         <div 
           onClick={() => navigate('/')} 
           className="flex flex-col items-center gap-2 mb-8 cursor-pointer group"
         >
-          <span className="font-price-display text-3xl font-bold uppercase tracking-wider text-white">
-            CRUZARO<span className="text-[#c7e74c] group-hover:animate-ping inline-block">.</span>
+          <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black shadow-sm group-hover:bg-blue-600 transition-colors duration-200">
+            <span className="material-symbols-outlined text-2xl">bolt</span>
+          </div>
+          <span className="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+            CRUZARO<span className="text-blue-600">.</span>
           </span>
-          <p className="text-slate-500 text-xs tracking-widest uppercase">Premium Electronics Store</p>
+          <p className="text-slate-500 text-xs tracking-widest uppercase font-semibold">
+            Premium Electronics & Hire Purchase
+          </p>
         </div>
 
         {/* Auth Card */}
-        <div className="bg-slate-900/80 border border-slate-800/80 rounded-3xl shadow-2xl shadow-black/60 backdrop-blur-md p-8 relative">
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8 relative">
           
           {/* Card Tabs */}
-          <div className="flex bg-slate-950 p-1.5 rounded-2xl mb-8 border border-slate-800/50">
+          <div className="flex bg-slate-100 p-1 rounded-2xl mb-8 border border-slate-200">
             <button
               onClick={() => { setIsLogin(true); setError(''); }}
-              className={`flex-1 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${
                 isLogin 
-                  ? 'bg-slate-800 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-300'
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Sign In
             </button>
             <button
               onClick={() => { setIsLogin(false); setError(''); }}
-              className={`flex-1 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 ${
                 !isLogin 
-                  ? 'bg-slate-800 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-300'
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Sign Up
+              Create Account
             </button>
           </div>
 
-          <h2 className="text-2xl font-bold text-white mb-2">
-            {isLogin ? 'Welcome back' : 'Create an account'}
-          </h2>
-          <p className="text-slate-400 text-sm mb-6">
-            {isLogin ? 'Sign in to your customer account' : 'Join Cruzaro to manage and place your orders'}
-          </p>
+          <div className="mb-6">
+            <h2 className="text-xl font-bold font-display text-slate-900">
+              {isLogin ? 'Welcome Back' : 'Create Customer Account'}
+            </h2>
+            <p className="text-slate-500 text-xs mt-1">
+              {isLogin 
+                ? 'Sign in to review orders, make installment payments, and track delivery.'
+                : 'Register to unlock flexible hire purchase and nationwide pickup.'}
+            </p>
+          </div>
 
           {error && (
-            <div className="mb-6 flex items-start gap-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl px-4 py-3 text-sm">
+            <div className="mb-6 flex items-start gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl px-4 py-3 text-xs leading-relaxed">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
-              {error}
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
                 Email Address
               </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-slate-800/70 border border-slate-700/60 text-slate-200 placeholder-slate-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition duration-200"
-              />
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
+                  mail
+                </span>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
                 Password
               </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-800/70 border border-slate-700/60 text-slate-200 placeholder-slate-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition duration-200"
-              />
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
+                  lock
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  tabIndex={-1}
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-800/70 border border-slate-700/60 text-slate-200 placeholder-slate-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition duration-200"
-                />
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">
+                    lock_clock
+                  </span>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition duration-200"
+                  />
+                </div>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 bg-[#c7e74c] hover:bg-[#b5d342] text-black font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-[#c7e74c]/10 active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2 duration-200 disabled:opacity-60"
+              className="w-full mt-3 bg-slate-900 hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm active:scale-[0.98] transition-all text-sm flex items-center justify-center gap-2 duration-200 disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <svg className="w-4 h-4 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                   </svg>
-                  Processing...
+                  <span>Processing...</span>
                 </>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                <span>{isLogin ? 'Sign In to Account' : 'Complete Registration'}</span>
               )}
             </button>
           </form>
@@ -169,13 +199,13 @@ export default function CustomerAuth() {
 
         {/* Back to Store */}
         <div className="text-center mt-6">
-          <button 
-            onClick={() => navigate('/')} 
-            className="text-slate-500 hover:text-[#c7e74c] text-sm flex items-center gap-1.5 mx-auto transition-colors"
+          <Link 
+            to="/" 
+            className="text-slate-500 hover:text-blue-600 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
             <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-            Back to Store
-          </button>
+            Back to Store Catalog
+          </Link>
         </div>
       </div>
     </div>

@@ -70,14 +70,16 @@ export default {
         "stack-lg": "1.5rem"
       },
       "fontFamily": {
-        "price-display": ["Geist"],
-        "body-md": ["Inter"],
-        "headline-sm": ["Geist"],
-        "label-lg": ["Geist"],
-        "headline-xl": ["Geist"],
-        "headline-lg": ["Geist"],
-        "body-sm": ["Inter"],
-        "label-md": ["Geist"]
+        "sans": ["'Plus Jakarta Sans'", "Inter", "system-ui", "sans-serif"],
+        "display": ["Outfit", "'Plus Jakarta Sans'", "sans-serif"],
+        "price-display": ["Outfit", "'Plus Jakarta Sans'", "sans-serif"],
+        "body-md": ["'Plus Jakarta Sans'", "Inter", "sans-serif"],
+        "headline-sm": ["Outfit", "sans-serif"],
+        "label-lg": ["'Plus Jakarta Sans'", "sans-serif"],
+        "headline-xl": ["Outfit", "sans-serif"],
+        "headline-lg": ["Outfit", "sans-serif"],
+        "body-sm": ["'Plus Jakarta Sans'", "Inter", "sans-serif"],
+        "label-md": ["'Plus Jakarta Sans'", "sans-serif"]
       },
       "fontSize": {
         "price-display": ["20px", {"lineHeight": "24px", "fontWeight": "700"}],

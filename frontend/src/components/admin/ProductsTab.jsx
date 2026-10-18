@@ -22,6 +22,11 @@ export default function ProductsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [stockFilter, setStockFilter] = useState('ALL'); // 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
@@ -109,6 +114,27 @@ export default function ProductsTab() {
     }
   };
 
+  // Categories list
+  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+  const lowStockCount = products.filter(p => (p.stock || 0) < 5).length;
+  const activeCount = products.filter(p => p.status === 'ACTIVE').length;
+
+  // Filtered Products
+  const filteredProducts = products.filter(p => {
+    const matchesSearch =
+      (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.unique_code || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
+
+    let matchesStock = true;
+    if (stockFilter === 'IN_STOCK') matchesStock = (p.stock || 0) >= 5;
+    else if (stockFilter === 'LOW_STOCK') matchesStock = (p.stock || 0) > 0 && (p.stock || 0) < 5;
+    else if (stockFilter === 'OUT_OF_STOCK') matchesStock = (p.stock || 0) === 0;
+
+    return matchesSearch && matchesCategory && matchesStock;
+  });
+
   if (loading && products.length === 0) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -124,20 +150,79 @@ export default function ProductsTab() {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white tracking-tight">Products</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Products Catalogue</h2>
+          <p className="text-slate-400 text-sm mt-0.5">Manage store products, live pricing, stock inventory, and payment rules.</p>
+        </div>
         <button
           onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-xl shadow-lg shadow-indigo-500/20 transition-all text-sm flex items-center gap-2"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-500/20 transition-all text-xs flex items-center gap-2 self-start sm:self-auto"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           Add Product
         </button>
       </div>
 
-      {error && <div className="text-rose-400 bg-rose-500/10 p-4 rounded-xl border border-rose-500/30 mb-6">{error}</div>}
+      {/* KPI Chips */}
+      <div className="flex flex-wrap gap-3">
+        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
+          <span className="text-slate-400">Total Products:</span>
+          <span className="font-bold text-white">{products.length}</span>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
+          <span className="text-slate-400">Active Listing:</span>
+          <span className="font-bold text-emerald-400">{activeCount}</span>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
+          <span className="text-slate-400">Low Stock (&lt; 5):</span>
+          <span className={`font-bold ${lowStockCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>{lowStockCount}</span>
+        </div>
+      </div>
+
+      {/* Toolbar: Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 relative">
+          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by product name or unique code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl pl-10 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+          />
+        </div>
+
+        {categories.length > 0 && (
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="bg-slate-900/60 border border-slate-700/50 text-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+          >
+            <option value="ALL">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+
+        <select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+          className="bg-slate-900/60 border border-slate-700/50 text-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+        >
+          <option value="ALL">All Stock Levels</option>
+          <option value="IN_STOCK">In Stock (&ge; 5)</option>
+          <option value="LOW_STOCK">Low Stock (1 - 4)</option>
+          <option value="OUT_OF_STOCK">Out of Stock (0)</option>
+        </select>
+      </div>
+
+      {error && <div className="text-rose-400 bg-rose-500/10 p-4 rounded-xl border border-rose-500/30">{error}</div>}
 
       {/* Table */}
       <div className="bg-slate-900/60 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl shadow-black/20">
@@ -158,14 +243,15 @@ export default function ProductsTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50 text-slate-300">
-              {products.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-10 text-center text-slate-500">
-                    No products found.
+                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
+                    <span className="text-3xl block mb-2">🔍</span>
+                    No products matching search or filter criteria.
                   </td>
                 </tr>
               ) : (
-                products.map((product) => (
+                filteredProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
                       <img src={product.image_url} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-slate-800 border border-slate-700" />
@@ -178,7 +264,7 @@ export default function ProductsTab() {
                       {product.stock !== undefined ? product.stock : 0}
                     </td>
                     <td className="px-6 py-4 font-semibold text-indigo-400">
-                      ₦{Number(product.price).toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                      GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4">
                       {product.payment_rule ? (
@@ -218,140 +304,200 @@ export default function ProductsTab() {
 
       {/* Modal Overlay */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0d1117] border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">{modalMode === 'add' ? 'Add New Product' : 'Edit Product'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-[#0d1117] border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] my-auto overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center shrink-0 bg-[#0d1117]">
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {modalMode === 'add' ? 'Add New Product' : 'Edit Product'}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {modalMode === 'add' ? 'Fill out all specifications and upload product media' : `Updating product #${currentProduct?.id}`}
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
             
-            <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Name</label>
-                <input
-                  name="name"
-                  type="text"
-                  required={modalMode === 'add'}
-                  defaultValue={currentProduct?.name || ''}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Description</label>
-                <textarea
-                  name="description"
-                  required={modalMode === 'add'}
-                  defaultValue={currentProduct?.description || ''}
-                  rows={3}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Price (₦)</label>
-                <input
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  required={modalMode === 'add'}
-                  defaultValue={currentProduct?.price || ''}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Stock</label>
-                <input
-                  name="stock"
-                  type="number"
-                  min="0"
-                  required={modalMode === 'add'}
-                  defaultValue={currentProduct?.stock !== undefined ? currentProduct.stock : 10}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Type</label>
-                <select
-                  name="type"
-                  defaultValue={currentProduct?.type || 'SINGLE'}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                >
-                  <option value="SINGLE">Single</option>
-                  <option value="COMBO">Combo</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Category</label>
-                <input
-                  name="category"
-                  type="text"
-                  defaultValue={currentProduct?.category || ''}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                  placeholder="e.g. Electronics"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Payment Rule</label>
-                <select
-                  name="payment_rule_id"
-                  defaultValue={currentProduct?.payment_rule_id || ''}
-                  className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-                >
-                  <option value="">Default Rule (Global default terms)</option>
-                  {paymentRules.map(rule => (
-                    <option key={rule.id} value={rule.id}>{rule.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
-                  Image {modalMode === 'edit' && <span className="normal-case font-normal text-slate-500">(Leave blank to keep current)</span>}
-                </label>
-                <input
-                  name="image"
-                  type="file"
-                  accept="image/*"
-                  required={modalMode === 'add'}
-                  className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 transition cursor-pointer"
-                />
-              </div>
-
-              {modalMode === 'edit' && (
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleSaveProduct} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                
+                {/* Product Name */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Status</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                    Product Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    name="name"
+                    type="text"
+                    required={modalMode === 'add'}
+                    defaultValue={currentProduct?.name || ''}
+                    placeholder="e.g. iPhone 16 Pro Max 256GB Titanium"
+                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
+                  />
+                </div>
+                
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                    Description & Specifications <span className="text-rose-400">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    required={modalMode === 'add'}
+                    defaultValue={currentProduct?.description || ''}
+                    rows={3}
+                    placeholder="Provide overview, key features, condition, warranty..."
+                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 resize-none transition"
+                  />
+                </div>
+
+                {/* Price and Stock Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                      Price (GH₵) <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      required={modalMode === 'add'}
+                      defaultValue={currentProduct?.price || ''}
+                      placeholder="0.00"
+                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                      Stock Quantity <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      name="stock"
+                      type="number"
+                      min="0"
+                      required={modalMode === 'add'}
+                      defaultValue={currentProduct?.stock !== undefined ? currentProduct.stock : 10}
+                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Type and Category Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                      Product Type
+                    </label>
+                    <select
+                      name="type"
+                      defaultValue={currentProduct?.type || 'SINGLE'}
+                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
+                    >
+                      <option value="SINGLE">Single Device</option>
+                      <option value="COMBO">Combo / Bundle Set</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                      Category
+                    </label>
+                    <input
+                      name="category"
+                      type="text"
+                      defaultValue={currentProduct?.category || ''}
+                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
+                      placeholder="e.g. phones, laptops, consoles, audio"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Rule Select */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                    Hire Purchase / Payment Rule
+                  </label>
                   <select
-                    name="status"
-                    defaultValue={currentProduct?.status || 'ACTIVE'}
-                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+                    name="payment_rule_id"
+                    defaultValue={currentProduct?.payment_rule_id || ''}
+                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="SUSPENDED">Suspended</option>
+                    <option value="">Default Rule (Global default installment terms)</option>
+                    {paymentRules.map(rule => (
+                      <option key={rule.id} value={rule.id}>
+                        {rule.name} ({rule.default_penalty_pct}% penalty, {rule.default_deadline_days} days)
+                      </option>
+                    ))}
                   </select>
                 </div>
-              )}
 
-              <div className="pt-4 border-t border-slate-700/50 flex justify-end gap-3">
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
+                    Product Image {modalMode === 'add' ? <span className="text-rose-400">*</span> : <span className="normal-case font-normal text-slate-500">(Leave blank to keep current)</span>}
+                  </label>
+                  <input
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    required={modalMode === 'add'}
+                    className="w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/30 transition cursor-pointer bg-slate-800/40 p-2 rounded-xl border border-slate-700/60"
+                  />
+                  {modalMode === 'edit' && currentProduct?.image_url && (
+                    <div className="flex items-center gap-3 mt-2 p-2 bg-slate-800/30 rounded-xl border border-slate-700/40">
+                      <img src={currentProduct.image_url} alt="Current" className="w-10 h-10 object-contain rounded-lg bg-slate-900 border border-slate-700" />
+                      <span className="text-xs text-slate-400">Current product photo uploaded</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status if editing */}
+                {modalMode === 'edit' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">Status</label>
+                    <select
+                      name="status"
+                      defaultValue={currentProduct?.status || 'ACTIVE'}
+                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="SUSPENDED">Suspended</option>
+                    </select>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Sticky Modal Footer Actions */}
+              <div className="px-6 py-4 border-t border-slate-700/50 flex justify-end gap-3 bg-slate-900/80 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2 text-sm font-medium text-slate-300 hover:text-white transition"
+                  className="px-5 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
                 >
-                  {saving ? 'Saving...' : 'Save Product'}
+                  {saving && (
+                    <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                  )}
+                  <span>{saving ? 'Saving...' : modalMode === 'add' ? 'Create Product' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>

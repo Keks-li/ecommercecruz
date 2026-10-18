@@ -17,9 +17,13 @@ export const getAllOrders = async (req, res) => {
                 id: true,
                 name: true,
                 unique_code: true,
+                image_url: true,
               },
             },
           },
+        },
+        transactions: {
+          orderBy: { created_at: 'desc' },
         },
       },
       orderBy: { id: 'desc' },
@@ -28,6 +32,52 @@ export const getAllOrders = async (req, res) => {
   } catch (error) {
     console.error('Error fetching admin orders:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getOrderById = async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id, 10);
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: 'Invalid order ID' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                unique_code: true,
+                image_url: true,
+              },
+            },
+          },
+        },
+        transactions: {
+          orderBy: { created_at: 'desc' },
+        },
+        cancellation: true,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    return res.json(order);
+  } catch (error) {
+    console.error('Error fetching admin order by ID:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -64,3 +114,4 @@ export const updateOrderStatus = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+

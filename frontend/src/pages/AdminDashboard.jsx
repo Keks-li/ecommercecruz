@@ -4,6 +4,7 @@ import OverviewTab from '../components/admin/OverviewTab';
 import ProductsTab from '../components/admin/ProductsTab';
 import OrdersTab from '../components/admin/OrdersTab';
 import OverdueTab from '../components/admin/OverdueTab';
+import RevenueRealizedTab from '../components/admin/RevenueRealizedTab';
 import PaymentRulesTab from '../components/admin/PaymentRulesTab';
 import CancellationsTab from '../components/admin/CancellationsTab';
 import AuditLogTab from '../components/admin/AuditLogTab';
@@ -15,6 +16,7 @@ const PackageIcon  = () => <svg className="w-4 h-4" fill="none" stroke="currentC
 const BagIcon      = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
 const UsersIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 const AlertIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>;
+const CashIcon     = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 const SettingsIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5.7"/><path d="M17.7 21.4a1 1 0 0 1-1.4 0l-.7-.7a4 4 0 0 1-1.1 0l-.7.7a1 1 0 0 1-1.4 0l-.7-.7a4 4 0 0 1-.8-1.4l-.7-.7a1 1 0 0 1 0-1.4l.7-.7a4 4 0 0 1 0-1.1l-.7-.7a1 1 0 0 1 0-1.4l.7-.7a4 4 0 0 1 1.4-.8l.7-.7a1 1 0 0 1 1.4 0l.7.7a4 4 0 0 1 1.1 0l.7-.7a1 1 0 0 1 1.4 0l.7.7a4 4 0 0 1 .8 1.4l.7.7a1 1 0 0 1 0 1.4l-.7.7a4 4 0 0 1 0 1.1l.7.7a1 1 0 0 1 0 1.4l-.7.7"/><circle cx="18" cy="18" r="2"/></svg>;
 const XIcon        = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>;
 const HistoryIcon  = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>;
@@ -34,7 +36,7 @@ const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
-      { id: 'overview',   label: 'Dashboard',    icon: ChartIcon },
+      { id: 'revenue-realized', label: 'Revenue Realized', icon: CashIcon },
     ],
   },
   {
@@ -54,8 +56,8 @@ const NAV_GROUPS = [
   {
     label: 'Finance',
     items: [
-      { id: 'payment-rules', label: 'Payment Rules', icon: SettingsIcon },
-      { id: 'audit-log',  label: 'Audit Log',    icon: HistoryIcon },
+      { id: 'payment-rules',    label: 'Payment Rules',   icon: SettingsIcon },
+      { id: 'audit-log',        label: 'Audit Log',       icon: HistoryIcon },
     ],
   },
   {
@@ -68,7 +70,7 @@ const NAV_GROUPS = [
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(getStoredUser);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('revenue-realized');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogin  = (u) => setUser(u);
@@ -78,15 +80,16 @@ export default function AdminDashboard() {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'overview':       return <OverviewTab />;
-      case 'products':       return <ProductsTab />;
-      case 'orders':         return <OrdersTab />;
-      case 'overdue':        return <OverdueTab />;
-      case 'payment-rules':  return <PaymentRulesTab />;
-      case 'cancellations':  return <CancellationsTab />;
-      case 'audit-log':      return <AuditLogTab />;
-      case 'customers':      return <AdminPanel />;
-      default:               return <OverviewTab />;
+      case 'revenue-realized': return <RevenueRealizedTab onNavigateTab={(tab) => setActiveTab(tab)} />;
+      case 'overview':         return <RevenueRealizedTab onNavigateTab={(tab) => setActiveTab(tab)} />;
+      case 'products':         return <ProductsTab />;
+      case 'orders':           return <OrdersTab />;
+      case 'overdue':          return <OverdueTab />;
+      case 'cancellations':    return <CancellationsTab />;
+      case 'payment-rules':    return <PaymentRulesTab />;
+      case 'audit-log':        return <AuditLogTab />;
+      case 'customers':        return <AdminPanel />;
+      default:                 return <RevenueRealizedTab onNavigateTab={(tab) => setActiveTab(tab)} />;
     }
   };
 

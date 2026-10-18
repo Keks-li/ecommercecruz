@@ -19,6 +19,7 @@ export const getActiveProducts = async (req, res) => {
         type: true,
         category: true,
         image_url: true,
+        stock: true,
       },
     });
     res.json(products);
@@ -74,3 +75,28 @@ export const getProductById = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getDefaultPaymentPolicy = async (req, res) => {
+  try {
+    let rule = await prisma.paymentRule.findFirst({
+      where: { is_default: true },
+    });
+    if (!rule) {
+      rule = await prisma.paymentRule.findFirst({
+        orderBy: { id: 'asc' },
+      });
+    }
+    return res.json(rule || {
+      name: 'Cruzaro Payment Policy',
+      default_deadline_days: 14,
+      default_penalty_pct: 10,
+      grace_period_days: 3,
+      default_cancel_fee_pct: 15,
+      max_refund_days: 30,
+    });
+  } catch (error) {
+    console.error('Error fetching payment policy:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

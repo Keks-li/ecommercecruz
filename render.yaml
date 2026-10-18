@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cruzaro-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false   # paste your Supabase Transaction pooler URL here
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLOUDINARY_URL
+        sync: false   # paste your Cloudinary URL here
+      - key: ALLOWED_ORIGINS
+        sync: false   # e.g. https://cruzaro.pages.dev,https://www.cruzaro.com
+    healthCheckPath: /api/health

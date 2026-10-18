@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import OrderDetailsModal from './OrderDetailsModal';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const RevenueIcon = () => (
@@ -56,10 +57,11 @@ function StatCard({ title, value, subtitle, icon: Icon, trend, colorClass = "fro
   );
 }
 
-export default function OverviewTab() {
+export default function OverviewTab({ onNavigateTab }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // Initialize selectedDate with today's date formatted as YYYY-MM-DD
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -188,7 +190,7 @@ export default function OverviewTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title={selectedDate ? "Revenue on Date" : "Total Revenue"}
-          value={`₦${Number(stats.totalRevenue).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`}
+          value={`GH₵ ${Number(stats.totalRevenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
           subtitle={selectedDate ? "Payments captured on this day" : "All-time customer payments"}
           icon={RevenueIcon}
         />
@@ -263,7 +265,7 @@ export default function OverviewTab() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-white text-sm font-bold">{prod.quantitySold} units sold</p>
-                    <p className="text-xs text-indigo-400 font-medium mt-0.5">₦{Number(prod.totalRevenue).toLocaleString('en-NG')}</p>
+                    <p className="text-xs text-indigo-400 font-semibold mt-0.5">GH₵ {Number(prod.totalRevenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
               ))
@@ -273,39 +275,67 @@ export default function OverviewTab() {
 
         {/* Recent Orders Feed Card */}
         <div className="bg-[#0f1524] border border-slate-800/80 rounded-2xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-6 gap-2 flex-wrap">
             <div>
               <h3 className="text-white font-bold text-lg tracking-tight">Orders Log</h3>
               <p className="text-slate-400 text-xs mt-0.5">
                 {selectedDate ? "Real-time checkout feed from this date." : "Real-time customer order checkout feed."}
               </p>
             </div>
-            <span className="text-xs font-semibold text-slate-500">{selectedDate ? "Day log" : "Recent feed"}</span>
+            <div className="flex items-center gap-2">
+              {onNavigateTab && (
+                <button
+                  onClick={() => onNavigateTab('orders')}
+                  className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                >
+                  All Orders →
+                </button>
+              )}
+              <span className="text-xs font-semibold text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded-md border border-slate-700/50">
+                {selectedDate ? "Day log" : "Recent feed"}
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {!stats.recentOrders || stats.recentOrders.length === 0 ? (
               <p className="text-center text-slate-500 py-10 text-sm">No orders registered for this scope.</p>
             ) : (
               stats.recentOrders.map((order) => (
-                <div key={order.id} className="bg-slate-900/40 hover:bg-slate-900/70 border border-slate-800/50 rounded-xl p-4 transition-colors flex flex-col gap-2">
+                <div
+                  key={order.id}
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className="bg-slate-900/50 hover:bg-slate-900/90 hover:border-indigo-500/40 border border-slate-800/60 rounded-xl p-4 transition-all cursor-pointer flex flex-col gap-2 group"
+                >
                   <div className="flex justify-between items-start gap-4">
                     <div className="min-w-0">
-                      <p className="text-slate-200 text-sm font-semibold truncate">{order.customerEmail}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Order #CRZ-{order.id.toString().padStart(5, '0')} • {new Date(order.createdAt).toLocaleDateString()}
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-mono text-xs font-bold group-hover:text-indigo-400 transition-colors">
+                          #CRZ-{order.id.toString().padStart(5, '0')}
+                        </span>
+                        <span className="text-slate-500 text-xs">•</span>
+                        <span className="text-slate-300 text-xs font-medium truncate">{order.customerEmail}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {order.pickupCity ? ` • Pickup: ${order.pickupCity}` : ''}
                       </p>
                     </div>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                      {order.status}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        {order.status}
+                      </span>
+                      <span className="text-slate-500 group-hover:text-indigo-400 text-xs font-bold transition-transform group-hover:translate-x-0.5">
+                        →
+                      </span>
+                    </div>
                   </div>
                   <div className="flex justify-between items-center text-xs border-t border-slate-800/80 pt-2 mt-1">
-                    <span className="text-slate-400 truncate max-w-[200px]">
+                    <span className="text-slate-400 truncate max-w-[220px]">
                       {order.items.map(item => `${item.productName} (x${item.quantity})`).join(', ')}
                     </span>
                     <span className="text-white font-bold shrink-0">
-                      ₦{Number(order.totalPrice).toLocaleString('en-NG')}
+                      GH₵ {Number(order.totalPrice).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -314,6 +344,15 @@ export default function OverviewTab() {
           </div>
         </div>
       </div>
+
+      {/* Order Details Modal when clicking any order from the Orders Log */}
+      {selectedOrderId && (
+        <OrderDetailsModal
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+          onStatusUpdated={() => fetchStats()}
+        />
+      )}
     </div>
   );
 }

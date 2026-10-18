@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import OrderDetailsModal from './OrderDetailsModal';
 
 const fmt = (n) => `GH₵ ${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 const daysUntil = (d) => {
@@ -33,6 +34,9 @@ export default function OverdueTab() {
   // Expanded order id for history modal
   const [historyOrderId, setHistoryOrderId] = useState(null);
   const [historyData, setHistoryData]       = useState(null);
+
+  // View full order modal state
+  const [viewOrderId, setViewOrderId]       = useState(null);
 
   // Set deadline modal state
   const [deadlineOrder, setDeadlineOrder]   = useState(null);
@@ -226,6 +230,10 @@ export default function OverdueTab() {
                   className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg transition">
                   Payment History
                 </button>
+                <button onClick={() => setViewOrderId(order.id)}
+                  className="px-3 py-1.5 text-xs font-semibold bg-indigo-600/15 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 rounded-lg transition flex items-center gap-1">
+                  View Order 👁️
+                </button>
               </div>
             </div>
           );
@@ -291,6 +299,15 @@ export default function OverdueTab() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Full Order Details Modal */}
+      {viewOrderId && (
+        <OrderDetailsModal
+          orderId={viewOrderId}
+          onClose={() => setViewOrderId(null)}
+          onStatusUpdated={() => fetchOrders()}
+        />
       )}
     </div>
   );

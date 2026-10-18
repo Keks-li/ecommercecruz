@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import Navbar from '../components/shop/Navbar';
+import CartDrawer from '../components/shop/CartDrawer';
+import Footer from '../components/shop/Footer';
 
 export default function CustomerProfile() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cartOpen, setCartOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'UNPAID' | 'PAID'
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -21,7 +26,7 @@ export default function CustomerProfile() {
         const { data } = await api.get('/orders');
         setOrders(data);
       } catch (err) {
-        setError(err.response?.data?.error || 'Failed to load order history');
+        setError(err.response?.data?.error || 'Failed to load order history.');
       } finally {
         setLoading(false);
       }
@@ -36,86 +41,149 @@ export default function CustomerProfile() {
     navigate('/');
   };
 
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'ALL') return orders;
+    if (statusFilter === 'UNPAID') {
+      return orders.filter((o) => ['PENDING', 'PARTIALLY_PAID', 'OVERDUE'].includes(o.payment_status));
+    }
+    if (statusFilter === 'PAID') {
+      return orders.filter((o) => o.payment_status === 'PAID');
+    }
+    return orders;
+  }, [orders, statusFilter]);
+
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#0b0f15] text-slate-100 pb-24">
-      {/* Background glow effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] bg-[#c7e74c]/5 rounded-full blur-[100px]" />
-      </div>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col antialiased">
+      <Navbar onCartClick={() => setCartOpen(true)} />
 
-      <div className="relative z-10 max-w-2xl mx-auto px-4 pt-8 space-y-6">
-        {/* Top Header */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            Back to Shop
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition"
-          >
-            <span className="material-symbols-outlined text-[14px]">logout</span>
-            Sign Out
-          </button>
-        </div>
-
-        {/* Profile Card */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-md flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
-              {user.email.charAt(0).toUpperCase()}
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        {/* Top Header Card */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-sm">
+                {user.email.charAt(0).toUpperCase()}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-blue-700 font-bold uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                    Verified Customer
+                  </span>
+                  <span className="text-xs text-slate-400">ID: #{user.id}</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {user.email}
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Manage your active hire purchase plans, delivery tracking, and payment history.
+                </p>
+              </div>
             </div>
-            <div>
-              <span className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Customer Account</span>
-              <h1 className="text-lg font-bold text-white truncate max-w-[200px] md:max-w-xs">{user.email}</h1>
+
+            <div className="flex items-center gap-2.5 self-end sm:self-center">
+              <Link
+                to="/"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition"
+              >
+                Store
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition"
+              >
+                <span className="material-symbols-outlined text-[16px]">logout</span>
+                Sign Out
+              </button>
             </div>
           </div>
-          <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-semibold">
-            Active
-          </span>
         </div>
 
-        {/* Order History */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#c7e74c]">shopping_bag</span>
-            Order History
-          </h2>
+        {/* Order History Container */}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+            <div>
+              <h2 className="text-xl font-bold font-display text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600">receipt_long</span>
+                Order & Payment Records
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Total {orders.length} orders recorded on your account.
+              </p>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center bg-slate-100 border border-slate-200 p-1 rounded-xl self-start sm:self-auto text-xs font-semibold">
+              <button
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  statusFilter === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All ({orders.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('UNPAID')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  statusFilter === 'UNPAID'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Active Balances
+              </button>
+              <button
+                onClick={() => setStatusFilter('PAID')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  statusFilter === 'PAID'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Paid in Full
+              </button>
+            </div>
+          </div>
 
           {loading ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (
-                <div key={i} className="h-40 bg-slate-900/40 border border-slate-800 rounded-3xl animate-pulse" />
+                <div key={i} className="h-48 bg-white border border-slate-200 rounded-3xl animate-pulse shadow-sm" />
               ))}
             </div>
           ) : error ? (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-rose-400 text-sm">
-              {error}
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-700 text-xs sm:text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined">error</span>
+              <span>{error}</span>
             </div>
-          ) : orders.length === 0 ? (
-            <div className="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-10 text-center space-y-4">
-              <span className="material-symbols-outlined text-4xl text-slate-600">receipt_long</span>
-              <div>
-                <p className="text-slate-400 font-medium">No orders found</p>
-                <p className="text-slate-600 text-xs mt-1">Products you buy will show up here.</p>
+          ) : filteredOrders.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 max-w-md mx-auto shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+                <span className="material-symbols-outlined text-3xl">shopping_bag</span>
               </div>
-              <button
-                onClick={() => navigate('/')}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-md transition"
+              <div className="space-y-1">
+                <p className="text-slate-900 font-bold text-base">No Orders in this View</p>
+                <p className="text-slate-500 text-xs">
+                  {orders.length === 0
+                    ? 'You have not placed any orders yet. Discover our latest flagship devices.'
+                    : 'No orders match the selected filter.'}
+                </p>
+              </div>
+              <Link
+                to="/"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs rounded-xl shadow-sm transition"
               >
-                Go Shop
-              </button>
+                <span className="material-symbols-outlined text-[16px]">grid_view</span>
+                Browse Catalog
+              </Link>
             </div>
           ) : (
-            <div className="space-y-4">
-              {orders.map((order) => (
+            <div className="space-y-5">
+              {filteredOrders.map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}
@@ -129,7 +197,11 @@ export default function CustomerProfile() {
             </div>
           )}
         </div>
-      </div>
+
+      </main>
+
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <Footer />
     </div>
   );
 }
@@ -139,6 +211,7 @@ function OrderCard({ order, onPaymentSuccess }) {
   const amountPaid = order.amount_paid ?? 0;
   const outstanding = Math.max(0, order.total_price - amountPaid);
   const isFullyPaid = outstanding <= 0;
+  const percentPaid = Math.min(100, Math.round((amountPaid / order.total_price) * 100)) || 0;
 
   const [payOpen, setPayOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
@@ -149,7 +222,7 @@ function OrderCard({ order, onPaymentSuccess }) {
   // Cancellation
   const cancelStatus = order.cancellation_status ?? order.cancellation?.status ?? 'NONE';
   const canCancel = ['PENDING', 'PARTIALLY_PAID'].includes(order.payment_status ?? '') &&
-    !['SHIPPED','DELIVERED','CANCELLED'].includes(order.status) &&
+    !['SHIPPED', 'DELIVERED', 'CANCELLED'].includes(order.status) &&
     cancelStatus === 'NONE';
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -158,13 +231,17 @@ function OrderCard({ order, onPaymentSuccess }) {
   const [cancelSuccess, setCancelSuccess] = useState(false);
 
   const handleRequestCancel = async () => {
-    if (!cancelReason.trim()) { setCancelError('Please provide a reason.'); return; }
-    setCancelling(true); setCancelError('');
+    if (!cancelReason.trim()) { setCancelError('Please provide a reason for cancellation.'); return; }
+    setCancelling(true); 
+    setCancelError('');
     try {
       await api.post(`/orders/${order.id}/cancel`, { reason: cancelReason });
       setCancelSuccess(true);
-      setTimeout(() => { setCancelOpen(false); setCancelSuccess(false); setCancelReason(''); }, 2000);
-      // Reload orders on parent
+      setTimeout(() => { 
+        setCancelOpen(false); 
+        setCancelSuccess(false); 
+        setCancelReason(''); 
+      }, 2000);
       onPaymentSuccess({ ...order, cancellation_status: 'REQUESTED' });
     } catch (err) {
       setCancelError(err.response?.data?.error || 'Cancellation request failed.');
@@ -183,11 +260,11 @@ function OrderCard({ order, onPaymentSuccess }) {
   const handlePay = async () => {
     const num = parseFloat(payAmount);
     if (isNaN(num) || num <= 0) {
-      setPayError('Enter a valid amount.');
+      setPayError('Please enter a valid payment amount.');
       return;
     }
     if (num > outstanding) {
-      setPayError(`Cannot exceed outstanding balance of GH₵ ${outstanding.toFixed(2)}.`);
+      setPayError(`Cannot exceed remaining balance of GH₵ ${outstanding.toFixed(2)}.`);
       return;
     }
 
@@ -197,7 +274,6 @@ function OrderCard({ order, onPaymentSuccess }) {
       const { data } = await api.post(`/orders/${order.id}/pay`, { amount: num });
       setPaySuccess(true);
       onPaymentSuccess(data);
-      // Close panel after short delay
       setTimeout(() => {
         setPayOpen(false);
         setPaySuccess(false);
@@ -211,141 +287,171 @@ function OrderCard({ order, onPaymentSuccess }) {
   };
 
   return (
-    <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 space-y-4">
-      {/* Order Header */}
-      <div className="flex justify-between items-start border-b border-slate-800/60 pb-3">
+    <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 space-y-5 transition-all shadow-sm">
+      
+      {/* Top Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Order ID</p>
-          <p className="text-xs font-mono text-indigo-400 font-semibold">
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold block">Order Reference</span>
+          <span className="font-mono text-xs font-bold text-blue-600">
             #CRZ-{order.id.toString().padStart(5, '0')}
-          </p>
+          </span>
+          <span className="text-slate-300 text-xs mx-2">•</span>
+          <span className="text-slate-500 text-xs">
+            {new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
         </div>
-        <div className="text-right">
+
+        <div className="flex items-center gap-2">
+          {/* Payment Status Pill */}
           <span
-            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase
-              ${order.status === 'PENDING'
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                : order.status === 'DELIVERED'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-              }`}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
+              order.payment_status === 'PAID'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : order.payment_status === 'PARTIALLY_PAID'
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : order.payment_status === 'OVERDUE'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}
           >
+            {order.payment_status?.replace('_', ' ')}
+          </span>
+
+          {/* Fulfillment Status Pill */}
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-100 border border-slate-200 text-slate-700">
             {order.status}
           </span>
         </div>
       </div>
 
-      {/* Order Items */}
+      {/* Items List */}
       <div className="space-y-3">
-        {order.items.map((item) => (
-          <div key={item.id} className="flex gap-3">
-            <img
-              src={item.product.image_url}
-              alt={item.product.name}
-              className="w-12 h-12 object-cover rounded-xl bg-slate-800"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{item.product.name}</p>
-              <p className="text-[10px] text-slate-500 font-mono mt-0.5">{item.product.unique_code}</p>
+        {order.items?.map((item) => (
+          <div key={item.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0">
+              <img
+                src={item.product?.image_url}
+                alt={item.product?.name}
+                className="w-full h-full object-contain"
+              />
             </div>
-            <div className="text-right text-xs">
-              <p className="text-slate-300 font-semibold">
-                GH₵ {item.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">{item.product?.name}</p>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">{item.product?.unique_code}</p>
+            </div>
+            <div className="text-right text-xs shrink-0">
+              <p className="text-slate-900 font-bold font-display">
+                GH₵ {item.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className="text-slate-500">Qty: {item.quantity}</p>
+              <p className="text-slate-500 text-[11px]">Qty: {item.quantity}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Payment Summary */}
-      <div className="pt-3 border-t border-slate-800/60 space-y-2">
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-slate-500">Order Total</span>
-          <span className="text-white font-bold">
-            GH₵ {order.total_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      {/* Pickup Location Info */}
+      {(order.pickup_region || order.pickup_city) && (
+        <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
+          <span className="material-symbols-outlined text-[16px] text-blue-600">pin_drop</span>
+          <span className="font-semibold text-slate-900">Pickup Destination:</span>
+          <span>
+            {[order.pickup_city, order.pickup_district, order.pickup_region].filter(Boolean).join(', ')}
           </span>
         </div>
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-slate-500">Amount Paid</span>
-          <span className="text-[#c7e74c] font-extrabold">
-            GH₵ {amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+      )}
+
+      {/* Payment Progress Bar */}
+      <div className="space-y-2 pt-2 border-t border-slate-100">
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-slate-500 font-medium">Installment Progress ({percentPaid}%)</span>
+          <span className="text-slate-900 font-bold font-display">
+            GH₵ {amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / GH₵ {order.total_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
-        {!isFullyPaid ? (
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-amber-400/80">Outstanding Balance</span>
-            <span className="text-amber-400 font-extrabold">
-              GH₵ {outstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 text-sm text-emerald-400 font-semibold">
-            <span className="material-symbols-outlined text-[16px]">check_circle</span>
-            Paid in full
-          </div>
-        )}
+        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              isFullyPaid ? 'bg-emerald-500' : 'bg-blue-600'
+            }`}
+            style={{ width: `${percentPaid}%` }}
+          />
+        </div>
       </div>
 
-      {/* Pay Balance Button */}
-      {!isFullyPaid && (
-        <div>
+      {/* Balance Row & Action */}
+      {!isFullyPaid ? (
+        <div className="pt-2">
           {!payOpen ? (
-            <button
-              onClick={handleOpenPay}
-              className="w-full mt-1 flex items-center justify-center gap-2 py-3 bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 hover:border-indigo-500/60 text-indigo-400 hover:text-indigo-300 font-semibold rounded-2xl text-sm transition-all duration-200 active:scale-[0.98]"
-            >
-              <span className="material-symbols-outlined text-[18px]">payments</span>
-              Pay Balance
-            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50 border border-blue-200 p-4 rounded-2xl">
+              <div>
+                <span className="text-[11px] text-blue-700 uppercase tracking-wider font-semibold block">Outstanding Balance</span>
+                <span className="font-display text-lg font-bold text-slate-900">
+                  GH₵ {outstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <button
+                onClick={handleOpenPay}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs tracking-wide shadow-sm transition-all active:scale-95 inline-flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">payments</span>
+                <span>Make Installment Payment</span>
+              </button>
+            </div>
           ) : (
-            /* Inline Pay Panel */
-            <div className="mt-1 bg-slate-800/60 border border-indigo-500/20 rounded-2xl p-4 space-y-3">
+            /* Inline Pay Modal / Box */
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white">Pay Outstanding Balance</p>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Make Partial or Full Payment</h4>
+                  <p className="text-slate-500 text-xs">
+                    Remaining balance: <strong className="text-blue-600">GH₵ {outstanding.toFixed(2)}</strong>
+                  </p>
+                </div>
                 <button
                   onClick={() => { setPayOpen(false); setPayError(''); }}
-                  className="text-slate-500 hover:text-slate-300 transition"
+                  className="text-slate-400 hover:text-slate-700"
                 >
                   <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
               </div>
 
               {paySuccess ? (
-                <div className="flex items-center gap-2 py-2 text-emerald-400 font-semibold text-sm">
+                <div className="flex items-center gap-2 py-3 text-emerald-700 font-bold text-sm bg-emerald-50 border border-emerald-200 rounded-xl px-4">
                   <span className="material-symbols-outlined">check_circle</span>
-                  Payment recorded successfully!
+                  <span>Payment recorded successfully! Updating schedule...</span>
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-slate-400">
-                    Outstanding: <span className="text-amber-400 font-bold">GH₵ {outstanding.toFixed(2)}</span>
-                    {' — '}you can pay any amount up to the full balance.
-                  </p>
-
                   {payError && (
-                    <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                    <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3.5 py-2.5">
                       {payError}
-                    </p>
+                    </div>
                   )}
 
-                  {/* Amount input */}
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">GH₵</span>
-                    <input
-                      id={`pay-input-${order.id}`}
-                      type="number"
-                      min="0.01"
-                      max={outstanding}
-                      step="0.01"
-                      value={payAmount}
-                      onChange={(e) => { setPayAmount(e.target.value); setPayError(''); }}
-                      className="w-full pl-11 pr-3 py-2.5 bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl text-white text-sm font-semibold focus:outline-none transition"
-                    />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700" htmlFor={`pay-input-${order.id}`}>
+                      Payment Amount (GH₵)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs font-bold">
+                        GH₵
+                      </span>
+                      <input
+                        id={`pay-input-${order.id}`}
+                        type="number"
+                        min="0.01"
+                        max={outstanding}
+                        step="0.01"
+                        value={payAmount}
+                        onChange={(e) => { setPayAmount(e.target.value); setPayError(''); }}
+                        className="w-full pl-14 pr-4 py-2.5 bg-white border border-slate-300 focus:border-blue-600 rounded-xl text-slate-900 text-sm font-bold focus:outline-none transition"
+                      />
+                    </div>
                   </div>
 
-                  {/* Quick-fill chips */}
-                  <div className="flex gap-1.5">
+                  {/* Percentage Presets */}
+                  <div className="flex gap-2">
                     {[25, 50, 75, 100].map((pct) => {
                       const val = (outstanding * pct) / 100;
                       return (
@@ -353,7 +459,7 @@ function OrderCard({ order, onPaymentSuccess }) {
                           key={pct}
                           type="button"
                           onClick={() => { setPayAmount(val.toFixed(2)); setPayError(''); }}
-                          className="flex-1 py-1.5 text-[10px] font-bold rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-400 transition"
+                          className="flex-1 py-1 text-[10px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-blue-600 hover:text-blue-600 transition shadow-xs"
                         >
                           {pct}%
                         </button>
@@ -364,18 +470,20 @@ function OrderCard({ order, onPaymentSuccess }) {
                   <button
                     onClick={handlePay}
                     disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
-                    className="w-full py-3 bg-[#c7e74c] hover:bg-[#b5d342] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-xl text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-slate-900 hover:bg-blue-600 disabled:opacity-40 text-white font-bold rounded-xl text-xs transition active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
                   >
                     {paying ? (
                       <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                         </svg>
-                        Processing...
+                        <span>Recording Payment...</span>
                       </>
                     ) : (
-                      `Pay GH₵ ${parseFloat(payAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      <span>
+                        Confirm Payment of GH₵ {parseFloat(payAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     )}
                   </button>
                 </>
@@ -383,65 +491,58 @@ function OrderCard({ order, onPaymentSuccess }) {
             </div>
           )}
         </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl font-semibold">
+          <span className="material-symbols-outlined text-[18px]">verified</span>
+          <span>Order fully paid. Thank you!</span>
+        </div>
       )}
 
-      {/* ── Cancellation Section ── */}
-      <div className="border-t border-slate-800/60 pt-3">
+      {/* Cancellation Workflow */}
+      <div className="pt-2">
         {cancelStatus !== 'NONE' ? (
-          <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border ${
-            cancelStatus === 'REQUESTED' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-            cancelStatus === 'APPROVED'  ? 'bg-blue-500/10  text-blue-400  border-blue-500/20'  :
-            cancelStatus === 'REJECTED'  ? 'bg-rose-500/10  text-rose-400  border-rose-500/20'  :
-            cancelStatus === 'REFUNDED'  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-            'bg-slate-800 text-slate-400 border-slate-700'
-          }`}>
-            <span className="material-symbols-outlined text-[16px]">cancel</span>
-            Cancellation {cancelStatus.toLowerCase().replace('_',' ')}
-            {order.cancellation?.refund_amount && cancelStatus === 'APPROVED' && (
-              <span className="ml-auto text-emerald-400">
-                Refund: GH₵ {order.cancellation.refund_amount.toFixed(2)}
-              </span>
-            )}
+          <div className="flex items-center gap-2 text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
+            <span className="material-symbols-outlined text-blue-600 text-[18px]">info</span>
+            <span>Cancellation Status: <strong className="text-slate-900 capitalize">{cancelStatus.toLowerCase()}</strong></span>
           </div>
         ) : canCancel ? (
           !cancelOpen ? (
             <button
               onClick={() => { setCancelOpen(true); setCancelError(''); }}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-slate-500 hover:text-rose-400 border border-dashed border-slate-700 hover:border-rose-500/40 rounded-xl transition-colors"
+              className="text-xs text-slate-500 hover:text-rose-600 font-semibold transition inline-flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-[16px]">cancel</span>
-              Request Cancellation
+              <span className="material-symbols-outlined text-[15px]">cancel</span>
+              Request Order Cancellation
             </button>
           ) : (
-            <div className="bg-slate-800/60 border border-rose-500/20 rounded-2xl p-4 space-y-3">
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-rose-400">Request Cancellation</p>
-                <button onClick={() => { setCancelOpen(false); setCancelError(''); }} className="text-slate-500 hover:text-slate-300">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+                <span className="text-xs font-bold text-rose-700">Submit Cancellation Request</span>
+                <button onClick={() => { setCancelOpen(false); setCancelError(''); }} className="text-slate-400 hover:text-slate-700">
+                  <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
               </div>
+
               {cancelSuccess ? (
-                <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                  <span className="material-symbols-outlined">check_circle</span>
-                  Cancellation request submitted!
+                <div className="text-xs text-emerald-700 bg-emerald-50 p-2.5 rounded-xl">
+                  Cancellation request submitted. An admin will review it shortly.
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-slate-400">A {order.cancellation?.cancellation_fee_pct ?? ''}% cancellation fee may be deducted from your refund. Admin will review and approve.</p>
-                  {cancelError && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cancelError}</p>}
+                  {cancelError && <p className="text-xs text-rose-700">{cancelError}</p>}
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={cancelReason}
-                    onChange={e => { setCancelReason(e.target.value); setCancelError(''); }}
-                    placeholder="Reason for cancellation…"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-white rounded-xl text-xs focus:outline-none focus:border-rose-500 resize-none"
+                    onChange={(e) => { setCancelReason(e.target.value); setCancelError(''); }}
+                    placeholder="State reason for cancelling this order..."
+                    className="w-full px-3 py-2 bg-white border border-rose-200 text-slate-900 rounded-xl text-xs focus:outline-none focus:border-rose-500 resize-none"
                   />
                   <button
                     onClick={handleRequestCancel}
                     disabled={cancelling || !cancelReason.trim()}
-                    className="w-full py-2.5 bg-rose-600/80 hover:bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition active:scale-[0.98]"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition disabled:opacity-40 shadow-sm"
                   >
-                    {cancelling ? 'Submitting…' : 'Submit Cancellation Request'}
+                    {cancelling ? 'Submitting...' : 'Confirm Request'}
                   </button>
                 </>
               )}
@@ -449,6 +550,7 @@ function OrderCard({ order, onPaymentSuccess }) {
           )
         ) : null}
       </div>
+
     </div>
   );
 }

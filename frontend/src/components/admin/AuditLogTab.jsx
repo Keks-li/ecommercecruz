@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import api from '../../services/api';
+import AuditLogDetails from './AuditLogDetails';
+import OrderDetailsModal from './OrderDetailsModal';
 
 const ACTION_STYLE = {
   ORDER_CREATED:          'bg-blue-500/10   text-blue-400   border-blue-500/20',
@@ -15,13 +17,15 @@ const ACTION_STYLE = {
 };
 
 export default function AuditLogTab() {
-  const [logs, setLogs]       = useState([]);
-  const [total, setTotal]     = useState(0);
-  const [pages, setPages]     = useState(1);
-  const [page, setPage]       = useState(1);
-  const [entity, setEntity]   = useState('');
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(null);
+  const [logs, setLogs]             = useState([]);
+  const [total, setTotal]           = useState(0);
+  const [pages, setPages]           = useState(1);
+  const [page, setPage]             = useState(1);
+  const [entity, setEntity]         = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading]       = useState(true);
+  const [expanded, setExpanded]     = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -38,7 +42,18 @@ export default function AuditLogTab() {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  const parseJson = (str) => { try { return JSON.stringify(JSON.parse(str), null, 2); } catch { return str; } };
+  // Client-side quick search over the fetched logs
+  const filteredLogs = logs.filter(log => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (log.action || '').toLowerCase().includes(term) ||
+      (log.entity || '').toLowerCase().includes(term) ||
+      String(log.entity_id || '').includes(term) ||
+      String(log.user_id || '').includes(term) ||
+      (log.ip_address || '').includes(term)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -47,7 +62,18 @@ export default function AuditLogTab() {
           <h2 className="text-2xl font-bold text-white tracking-tight">Audit Log</h2>
           <p className="text-slate-400 text-sm mt-0.5">Immutable record of all financial actions. {total} total entries.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Filter logs (action, id, user)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 bg-slate-900 border border-slate-700 text-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-500 w-56"
+            />
+          </div>
+
           <select value={entity} onChange={e => { setEntity(e.target.value); setPage(1); }}
             className="px-3 py-2 bg-slate-900 border border-slate-700 text-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500">
             <option value="">All Entities</option>
@@ -64,13 +90,13 @@ export default function AuditLogTab() {
 
       {loading ? (
         <div className="space-y-2 animate-pulse">{[...Array(6)].map((_,i) => <div key={i} className="h-14 bg-slate-800 rounded-xl"/>)}</div>
-      ) : logs.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
           <span className="material-symbols-outlined text-5xl">history</span>
-          <p className="mt-3 font-medium">No audit events recorded yet.</p>
+          <p className="mt-3 font-medium">No audit events match your search.</p>
         </div>
       ) : (
-        <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80 text-slate-400 text-xs uppercase tracking-wider">
@@ -84,9 +110,9 @@ export default function AuditLogTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {logs.map(log => (
-                  <>
-                    <tr key={log.id} className="hover:bg-slate-800/30 transition-colors cursor-pointer"
+                {filteredLogs.map(log => (
+                  <Fragment key={log.id}>
+                    <tr className="hover:bg-slate-800/30 transition-colors cursor-pointer"
                       onClick={() => setExpanded(expanded === log.id ? null : log.id)}>
                       <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
@@ -96,36 +122,26 @@ export default function AuditLogTab() {
                           {log.action.replace(/_/g,' ')}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-400">
+                      <td className="px-4 py-3 text-xs text-slate-400 font-mono">
                         {log.entity}{log.entity_id ? ` #${log.entity_id}` : ''}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">{log.user_id ?? '—'}</td>
                       <td className="px-4 py-3 text-xs text-slate-600">{log.ip_address ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs text-indigo-400">
-                        {(log.old_value || log.new_value) ? 'View ▾' : '—'}
+                      <td className="px-4 py-3 text-xs text-indigo-400 font-semibold">
+                        {(log.old_value || log.new_value) ? (expanded === log.id ? 'Close ▴' : 'View ▾') : '—'}
                       </td>
                     </tr>
                     {expanded === log.id && (log.old_value || log.new_value) && (
-                      <tr key={`${log.id}-detail`} className="bg-slate-900/80">
-                        <td colSpan={6} className="px-4 py-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                            {log.old_value && (
-                              <div>
-                                <p className="text-rose-400 font-semibold mb-1">Old Value</p>
-                                <pre className="text-slate-400 bg-slate-900 p-3 rounded-lg overflow-x-auto">{parseJson(log.old_value)}</pre>
-                              </div>
-                            )}
-                            {log.new_value && (
-                              <div>
-                                <p className="text-emerald-400 font-semibold mb-1">New Value</p>
-                                <pre className="text-slate-400 bg-slate-900 p-3 rounded-lg overflow-x-auto">{parseJson(log.new_value)}</pre>
-                              </div>
-                            )}
-                          </div>
+                      <tr className="bg-slate-900/90 border-t border-b border-indigo-500/20">
+                        <td colSpan={6} className="px-5 py-4">
+                          <AuditLogDetails
+                            log={log}
+                            onOpenOrder={(orderId) => setSelectedOrderId(orderId)}
+                          />
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -147,6 +163,15 @@ export default function AuditLogTab() {
           </button>
         </div>
       )}
+
+      {/* Full Order Details Modal */}
+      {selectedOrderId && (
+        <OrderDetailsModal
+          orderId={selectedOrderId}
+          onClose={() => setSelectedOrderId(null)}
+        />
+      )}
     </div>
   );
 }
+

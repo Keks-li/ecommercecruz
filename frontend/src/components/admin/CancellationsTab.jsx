@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
+import OrderDetailsModal from './OrderDetailsModal';
 
 const fmt = (n) => `GH₵ ${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
@@ -19,6 +20,9 @@ export default function CancellationsTab() {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
+
+  // View full order modal state
+  const [viewOrderId, setViewOrderId] = useState(null);
 
   // Note modal
   const [noteModal, setNoteModal] = useState(null); // { reqId, action }
@@ -151,6 +155,12 @@ export default function CancellationsTab() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-white font-bold font-mono">#CRZ-{String(order.id).padStart(5,'0')}</p>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${STATUS_STYLE[req.status]}`}>{req.status}</span>
+                    <button
+                      onClick={() => setViewOrderId(order.id)}
+                      className="px-2 py-0.5 text-[11px] font-semibold bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 text-indigo-300 rounded-lg transition flex items-center gap-1"
+                    >
+                      View Order 👁️
+                    </button>
                   </div>
                   <p className="text-slate-400 text-xs mt-1">{order.user?.email}</p>
                   <p className="text-slate-500 text-xs mt-0.5">Requested: {new Date(req.created_at).toLocaleString()}</p>
@@ -223,6 +233,15 @@ export default function CancellationsTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Full Order Details Modal */}
+      {viewOrderId && (
+        <OrderDetailsModal
+          orderId={viewOrderId}
+          onClose={() => setViewOrderId(null)}
+          onStatusUpdated={() => fetchRequests()}
+        />
       )}
     </div>
   );

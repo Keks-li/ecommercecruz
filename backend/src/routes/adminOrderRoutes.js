@@ -1,7 +1,7 @@
 import express from 'express';
 import { protect, isAdmin } from '../middleware/auth.js';
 
-import { getAllOrders, updateOrderStatus } from '../controllers/adminOrderController.js';
+import { getAllOrders, getOrderById, updateOrderStatus } from '../controllers/adminOrderController.js';
 import {
   setPaymentDeadline,
   applyPenalty,
@@ -51,4 +51,8 @@ router.post('/cancellations/:id/refund', processRefund);
 // ── Audit logs ────────────────────────────────────────────────────────────────
 router.get('/audit-logs', getAuditLogs);
 
+// ── Single Order Detail ───────────────────────────────────────────────────────
+router.get('/:id', getOrderById);
+
 export default router;
+

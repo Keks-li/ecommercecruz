@@ -1,4 +1,4 @@
-﻿# AGENTS.md — Cruzaro E-Commerce Platform
+# AGENTS.md — Cruzaro E-Commerce Platform
 
 > **Read this file first** before modifying any code. It is the single source of truth for AI agents working in this repository.
 
@@ -25,11 +25,11 @@
 | HTTP Client | Axios                                          | v1.6                       |
 | Backend     | Node.js + Express                              | ESM (`"type":"module"`)    |
 | ORM         | Prisma                                         | v5.11                      |
-| Database    | PostgreSQL                                     | v16 (Docker image)         |
+| Database    | PostgreSQL (Supabase managed)                  | v17 · eu-west-2 (London)   |
 | Auth        | JSON Web Tokens (JWT) + bcryptjs               |                            |
-| Storage     | Cloudinary                                     | SDK v2                     |
+| Storage     | Cloudinary                                     | SDK v2 · cloud: qfpjrjxc   |
 | Security    | Helmet (HTTP headers)                          |                            |
-| DevOps      | Docker + Docker Compose                        |                            |
+| Hosting     | Frontend → Cloudflare Pages · Backend → Render/Railway |              |
 
 ---
 
@@ -63,7 +63,8 @@ ecommercecruz/
 │   │   │   └── orderRoutes.js
 │   │   └── utils/
 │   │       └── prisma.js
-│   ├── seed-admin.js
+│   ├── seed-admin.js          # legacy (kept for reference)
+│   ├── seed_admin.js          # ✅ USE THIS — seeds admin@cruzaro.com
 │   ├── Dockerfile
 │   └── package.json
 │
@@ -84,13 +85,16 @@ ecommercecruz/
 │   │   │   └── AdminPanel.jsx
 │   │   └── components/
 │   │       ├── admin/
+│   │       │   ├── AuditLogDetails.jsx
 │   │       │   ├── AuditLogTab.jsx
 │   │       │   ├── CancellationsTab.jsx
+│   │       │   ├── OrderDetailsModal.jsx
 │   │       │   ├── OrdersTab.jsx
 │   │       │   ├── OverdueTab.jsx
 │   │       │   ├── OverviewTab.jsx
 │   │       │   ├── PaymentRulesTab.jsx
 │   │       │   ├── ProductsTab.jsx
+│   │       │   ├── RevenueRealizedTab.jsx
 │   │       │   ├── StatusBadge.jsx
 │   │       │   └── UsersTable.jsx
 │   │       └── shop/
@@ -103,11 +107,13 @@ ecommercecruz/
 │   │           └── PromoBanners.jsx
 │   └── package.json
 │
-├── docker-compose.yml
+├── docker-compose.yml             # legacy — NOT used in production
 ├── AGENTS.md                      # <- You are here
 ├── prd.md
 ├── architecture.md
 ├── architecture-essentials.md
+├── render.yaml
+├── railway.toml
 └── .env.example
 ```
 
@@ -124,10 +130,13 @@ All routes are prefixed with `/api`.
 | POST | `/api/auth/login` | None | Login (any role) |
 | GET | `/api/products` | None | Public product listing |
 | GET | `/api/products/:id` | None | Product detail |
+| GET | `/api/products/payment-policy` | None | Active default payment rules policy |
 | POST | `/api/orders` | protect | Place order |
 | GET | `/api/orders` | protect | Customer orders |
 | POST | `/api/orders/:id/pay` | protect | Submit payment |
 | POST | `/api/orders/:id/cancel` | protect | Request cancellation |
+| GET | `/api/admin/stats` | protect+isAdmin | Dashboard statistics & metrics |
+| GET | `/api/admin/revenue-realized` | protect+isAdmin | Realized revenue, cash inflows & ledger |
 | GET | `/api/admin/users` | protect+isAdmin | List all users |
 | PATCH | `/api/admin/users/:id/status` | protect+isAdmin | Suspend/reactivate user |
 | GET | `/api/admin/products` | protect+isAdmin | Admin product list |
@@ -135,6 +144,7 @@ All routes are prefixed with `/api`.
 | PATCH | `/api/admin/products/:id` | protect+isAdmin | Update product |
 | PATCH | `/api/admin/products/:id/status` | protect+isAdmin | Suspend/reactivate product |
 | GET | `/api/admin/orders` | protect+isAdmin | All orders |
+| GET | `/api/admin/orders/:id` | protect+isAdmin | Single order full detail |
 | PATCH | `/api/admin/orders/:id/status` | protect+isAdmin | Update order status |
 | GET | `/api/admin/orders/overdue` | protect+isAdmin | Overdue payment orders |
 | POST | `/api/admin/orders/:id/set-deadline` | protect+isAdmin | Set payment deadline |
@@ -204,43 +214,103 @@ All routes are prefixed with `/api`.
 
 ## 8. Environment Variables
 
+All env vars live in `backend/.env` (local dev). Production env vars are set in the hosting dashboard (Render / Railway). There is **no** Docker Compose env setup — `DB_USER`, `DB_PASSWORD`, `DB_NAME` are no longer used.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | Full PostgreSQL connection string |
-| `DB_USER` | Yes | Postgres username (Docker Compose) |
-| `DB_PASSWORD` | Yes | Postgres password (Docker Compose) |
-| `DB_NAME` | Yes | Postgres database name |
-| `PORT` | Yes | Backend port (default: 5000) |
+| `DATABASE_URL` | Yes | Supabase PostgreSQL connection string (see formats below) |
+| `PORT` | Yes | Backend port (default: `5000`) |
 | `NODE_ENV` | Yes | `development` or `production` |
-| `JWT_SECRET` | Yes | Strong random secret for JWT signing |
-| `CLOUDINARY_URL` | Yes | Full Cloudinary URL from dashboard |
+| `JWT_SECRET` | Yes | Strong random 128-char hex secret for JWT signing |
+| `CLOUDINARY_URL` | Yes | `cloudinary://<key>:<secret>@<cloud_name>` |
+| `ALLOWED_ORIGINS` | Yes (prod) | Comma-separated allowed CORS origins. Empty = allow all (local dev only) |
+| `PAYSTACK_SECRET_KEY` | Planned | Paystack webhook secret (v2) |
+
+### DATABASE_URL formats
+
+```bash
+# Local dev & Prisma migrations — Direct connection (port 5432)
+DATABASE_URL=postgresql://postgres.nmknkskyzmlocnjbrtub:<password>@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+
+# Production (Render/Railway) — Transaction Pooler (port 6543)
+DATABASE_URL=postgresql://postgres.nmknkskyzmlocnjbrtub:<password>@aws-0-eu-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
+
+> ⚠️ Special characters in the password must be URL-encoded (`@` → `%40`, `$` → `%24`).
+
+---
+
+## 8a. Supabase Project
+
+| Field | Value |
+|---|---|
+| **Project name** | online cart |
+| **Project ref** | `nmknkskyzmlocnjbrtub` |
+| **Region** | eu-west-2 (London) |
+| **Postgres version** | 17.11 |
+| **Dashboard** | https://supabase.com/dashboard/project/nmknkskyzmlocnjbrtub |
+| **DB host** | `db.nmknkskyzmlocnjbrtub.supabase.co` |
+
+### Tables (created via direct SQL migration — NOT `prisma migrate`)
+| Table | Notes |
+|---|---|
+| `PaymentRule` | Seeded with 1 default rule |
+| `User` | |
+| `Product` | |
+| `Order` | |
+| `OrderItem` | |
+| `PaymentTransaction` | |
+| `CancellationRequest` | |
+| `AuditLog` | |
+| `_prisma_migrations` | Prisma-compatible tracking table |
+
+> ⚠️ RLS (Row Level Security) is **disabled** on all tables. Safe because the backend connects via the service-role/direct connection string — not the anon key. Do NOT enable RLS without adding appropriate policies first.
 
 ---
 
 ## 9. Development Setup
 
-### Docker (recommended)
-```bash
-cp .env.example .env
-docker-compose up --build
-```
+> Docker is **not** used for local development. The database is Supabase (managed cloud Postgres).
+
+### Prerequisites
+- Node.js v18+
+- A configured `backend/.env` (copy from `backend/.env.example` and fill in real values)
+- PowerShell execution policy set: `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 ### Local Backend
 ```bash
-cd backend && npm install
-npx prisma migrate dev
-npm run dev
+cd backend
+npm install          # also runs: prisma generate
+npm run dev          # starts nodemon on port 5000
 ```
 
 ### Local Frontend
 ```bash
-cd frontend && npm install
-npm run dev
+cd frontend
+npm install --legacy-peer-deps    # --legacy-peer-deps required (eslint peer conflict)
+npm run dev          # starts Vite on port 3000
 ```
 
 ### Seed Admin
 ```bash
-cd backend && node seed-admin.js
+# From the backend/ directory:
+node seed_admin.js
+# Creates: admin@cruzaro.com / admin123
+# Outputs a localStorage token command for instant browser login
+```
+
+### Schema changes
+```bash
+# Edit backend/prisma/schema.prisma, then:
+npx prisma db push       # pushes schema to Supabase WITHOUT migrations
+# OR for tracked migrations:
+npx prisma migrate dev --name <description>
+```
+
+### Verify everything is working
+```bash
+curl http://localhost:5000/api/health
+# Expected: {"status":"Backend is running"}
 ```
 
 ---
@@ -248,7 +318,7 @@ cd backend && node seed-admin.js
 ## 10. Agent Coding Rules
 
 1. **Architecture** — Controllers handle logic; routes handle HTTP wiring; middleware handles cross-cutting concerns.
-2. **Schema changes** — After editing `schema.prisma`, always run `npx prisma migrate dev --name <description>`.
+2. **Schema changes** — After editing `schema.prisma`, run `npx prisma db push` (for Supabase dev) or `npx prisma migrate dev --name <description>` (for tracked migrations). The Prisma `binaryTargets` must be `["native", "debian-openssl-3.0.x"]` — do NOT use `linux-openssl-3.0.x` (invalid).
 3. **ESM only** — Backend uses `"type":"module"`. Use `import/export`, never `require`.
 4. **Prisma singleton** — Import from `src/utils/prisma.js` only. Never instantiate `PrismaClient` elsewhere.
 5. **Error handling** — Wrap async controllers in try/catch. Return `{ error: "..." }` JSON on failure.
