@@ -118,6 +118,53 @@ app.get('/', (req, res) => {
   res.json({ status: 'Backend is running', message: 'Cruzaro API is live' });
 });
 
+// Robots.txt for backend API domain (instructs crawlers to index the frontend storefront, not raw API responses)
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send('User-agent: *\nDisallow: /\n');
+});
+
+// Dynamic XML sitemap endpoint — always serves fresh database products
+app.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
+  try {
+    const prismaModule = await import('./utils/prisma.js');
+    const prisma = prismaModule.default;
+    const products = await prisma.product.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, category: true, created_at: true },
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+    const categories = new Set(['Phones', 'Refrigerators', 'Washing', 'AC Units', 'Microwaves']);
+    products.forEach((p) => {
+      if (p.category) categories.add(p.category);
+    });
+
+    const urls = [
+      `  <url>\n    <loc>https://cruzaroent.com/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.00</priority>\n  </url>`,
+    ];
+
+    categories.forEach((cat) => {
+      urls.push(
+        `  <url>\n    <loc>https://cruzaroent.com/category/${encodeURIComponent(cat)}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.80</priority>\n  </url>`
+      );
+    });
+
+    products.forEach((p) => {
+      const pDate = p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : today;
+      urls.push(
+        `  <url>\n    <loc>https://cruzaroent.com/product/${p.id}</loc>\n    <lastmod>${pDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.90</priority>\n  </url>`
+      );
+    });
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`;
+    res.type('application/xml');
+    res.send(xml);
+  } catch (err) {
+    res.status(500).type('text/plain').send('Error generating sitemap');
+  }
+});
+
 // Paystack webhook endpoint (dedicated path per PRD/architecture specification)
 app.post('/api/webhooks/paystack', handleWebhook);
 

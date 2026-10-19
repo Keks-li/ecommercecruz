@@ -1,0 +1,18 @@
+# Robots.txt for Cruzaro (https://cruzaroent.com)
+# Allow search engines to crawl public store pages, disallow private/admin areas.
+
+User-agent: *
+Allow: /
+Allow: /category/
+Allow: /product/
+
+# Block administrative and sensitive user areas
+Disallow: /admin
+Disallow: /admin/
+Disallow: /profile
+Disallow: /profile/
+Disallow: /auth
+Disallow: /auth/
+
+# Specify XML sitemap location
+Sitemap: https://cruzaroent.com/sitemap.xml
