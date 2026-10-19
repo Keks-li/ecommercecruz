@@ -32,6 +32,27 @@ export const createProduct = async (req, res) => {
           // Generate unique code
           const unique_code = generateCode();
 
+          // Resolve payment rule ID:
+          // Admin can select a specific rule. If not selected or left as default, assign the default rule.
+          let paymentRuleId = null;
+          if (req.body.payment_rule_id && req.body.payment_rule_id !== 'default' && req.body.payment_rule_id !== '') {
+            const parsedId = parseInt(req.body.payment_rule_id, 10);
+            if (!isNaN(parsedId)) {
+              const ruleExists = await prisma.paymentRule.findUnique({ where: { id: parsedId } });
+              if (ruleExists) {
+                paymentRuleId = ruleExists.id;
+              }
+            }
+          }
+
+          if (!paymentRuleId) {
+            const defaultRule = (await prisma.paymentRule.findFirst({ where: { is_default: true } })) ||
+              (await prisma.paymentRule.findFirst());
+            if (defaultRule) {
+              paymentRuleId = defaultRule.id;
+            }
+          }
+
           // Save product to database
           const product = await prisma.product.create({
             data: {
@@ -44,7 +65,7 @@ export const createProduct = async (req, res) => {
               category: category || null,
               image_url: result.secure_url,
               stock: parseInt(stock, 10) || 0,
-              payment_rule_id: req.body.payment_rule_id ? parseInt(req.body.payment_rule_id, 10) : null,
+              payment_rule_id: paymentRuleId,
             },
             include: { payment_rule: true },
           });
@@ -120,7 +141,20 @@ export const updateProduct = async (req, res) => {
     if (category !== undefined) data.category = category;
     if (stock !== undefined) data.stock = parseInt(stock, 10) || 0;
     if (req.body.payment_rule_id !== undefined) {
-      data.payment_rule_id = req.body.payment_rule_id ? parseInt(req.body.payment_rule_id, 10) : null;
+      let updateRuleId = null;
+      if (req.body.payment_rule_id && req.body.payment_rule_id !== 'default' && req.body.payment_rule_id !== '') {
+        const parsedId = parseInt(req.body.payment_rule_id, 10);
+        if (!isNaN(parsedId)) {
+          const ruleExists = await prisma.paymentRule.findUnique({ where: { id: parsedId } });
+          if (ruleExists) updateRuleId = ruleExists.id;
+        }
+      }
+      if (!updateRuleId) {
+        const defaultRule = (await prisma.paymentRule.findFirst({ where: { is_default: true } })) ||
+          (await prisma.paymentRule.findFirst());
+        if (defaultRule) updateRuleId = defaultRule.id;
+      }
+      data.payment_rule_id = updateRuleId;
     }
 
     let updateData = { ...data };

@@ -33,7 +33,10 @@ export default function ProductsTab() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [saving, setSaving] = useState(false);
   const [paymentRules, setPaymentRules] = useState([]);
+  const [selectedRuleId, setSelectedRuleId] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+
+  const defaultRule = paymentRules.find((r) => r.is_default) || paymentRules[0];
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -77,12 +80,20 @@ export default function ProductsTab() {
   const openAddModal = () => {
     setModalMode('add');
     setCurrentProduct(null);
+    setSelectedRuleId(defaultRule ? String(defaultRule.id) : '');
     setIsModalOpen(true);
   };
 
   const openEditModal = (product) => {
     setModalMode('edit');
     setCurrentProduct(product);
+    setSelectedRuleId(
+      product.payment_rule_id
+        ? String(product.payment_rule_id)
+        : defaultRule
+        ? String(defaultRule.id)
+        : ''
+    );
     setIsModalOpen(true);
   };
 
@@ -93,6 +104,11 @@ export default function ProductsTab() {
     const formData = new FormData(e.target);
     for (let [key, value] of formData.entries()) {
       if (!value) formData.delete(key);
+    }
+
+    // Ensure payment rule is explicitly set or falls back to default rule ID
+    if (!formData.get('payment_rule_id') && (selectedRuleId || defaultRule?.id)) {
+      formData.set('payment_rule_id', selectedRuleId || String(defaultRule.id));
     }
 
     try {
@@ -169,6 +185,36 @@ export default function ProductsTab() {
       key: 'category',
       accessor: 'category',
       cellClassName: 'text-[#5F6877]',
+    },
+    {
+      header: 'Payment Policy',
+      key: 'payment_rule',
+      render: (row) => {
+        const rule =
+          row.payment_rule ||
+          paymentRules.find((r) => r.id === row.payment_rule_id) ||
+          defaultRule;
+        if (!rule) {
+          return (
+            <span className="text-[12px] text-[#5F6877] italic">Default Policy</span>
+          );
+        }
+        return (
+          <div className="text-[12px]">
+            <div className="font-medium text-[#1B1D22] flex items-center gap-1.5">
+              <span>{rule.name}</span>
+              {rule.is_default && (
+                <span className="text-[10px] bg-[#EEF0FD] text-[#5266EB] px-1.5 py-0.5 rounded-[4px] font-medium">
+                  Default
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-[#8B93A1]">
+              {rule.default_deadline_days}d deadline · {rule.default_penalty_pct}% penalty
+            </div>
+          </div>
+        );
+      },
     },
     {
       header: 'Price',
@@ -446,6 +492,73 @@ export default function ProductsTab() {
                 <option value="COMBO">Combo Bundle</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[13px] font-medium text-[#1B1D22]">
+                Payment Rule Policy <span className="text-[#5266EB]">*</span>
+              </label>
+              {defaultRule && (
+                <span className="text-[11px] text-[#5F6877]">
+                  Default Rule: <strong className="text-[#1B1D22]">{defaultRule.name}</strong>
+                </span>
+              )}
+            </div>
+            <select
+              name="payment_rule_id"
+              value={selectedRuleId}
+              onChange={(e) => setSelectedRuleId(e.target.value)}
+              className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+            >
+              {paymentRules.length === 0 && defaultRule && (
+                <option value={defaultRule.id}>
+                  {defaultRule.name} (Default Policy)
+                </option>
+              )}
+              {paymentRules.map((rule) => (
+                <option key={rule.id} value={rule.id}>
+                  {rule.name} {rule.is_default ? '(Default Policy)' : ''} — {rule.default_deadline_days} days deadline, {rule.default_penalty_pct}% penalty
+                </option>
+              ))}
+            </select>
+            {/* Live terms preview */}
+            {(() => {
+              const activeRule =
+                paymentRules.find((r) => String(r.id) === String(selectedRuleId)) || defaultRule;
+              if (!activeRule) return null;
+              return (
+                <div className="mt-2 p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[6px] text-[11px] text-[#5F6877] flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <div>
+                    Deadline:{' '}
+                    <span className="font-semibold text-[#1B1D22]">
+                      {activeRule.default_deadline_days} days
+                    </span>
+                  </div>
+                  <div>
+                    Overdue Penalty:{' '}
+                    <span className="font-semibold text-[#1B1D22]">
+                      {activeRule.default_penalty_pct}%
+                    </span>
+                  </div>
+                  <div>
+                    Grace Period:{' '}
+                    <span className="font-semibold text-[#1B1D22]">
+                      {activeRule.grace_period_days || 3} days
+                    </span>
+                  </div>
+                  <div>
+                    Cancellation Fee:{' '}
+                    <span className="font-semibold text-[#1B1D22]">
+                      {activeRule.default_cancel_fee_pct || 15}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+            <p className="text-[11px] text-[#8B93A1] mt-1">
+              Select the payment rule for this product. If not changed, the default rule ({defaultRule?.name || 'Default Policy'}) is applied automatically.
+            </p>
           </div>
 
           <div>

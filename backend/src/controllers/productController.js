@@ -76,6 +76,7 @@ export const getProductById = async (req, res) => {
     const { id } = req.params;
     const product = await prisma.product.findUnique({
       where: { id: Number(id) },
+      include: { payment_rule: true },
     });
 
     if (!product || product.status !== 'ACTIVE') {
