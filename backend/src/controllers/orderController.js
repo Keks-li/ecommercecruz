@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,11 @@ export const createOrder = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('products:');
+    cache.invalidate('revenue:');
+
     return res.status(201).json(order);
   } catch (error) {
     console.error('Error creating order:', error);
@@ -222,6 +228,10 @@ export const payOrderBalance = async (req, res) => {
       newValue: { amountPaid: newAmountPaid, paymentStatus: newPaymentStatus },
       ip: req.ip,
     });
+
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('revenue:');
 
     return res.json(updated);
   } catch (error) {

@@ -1,46 +1,46 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  Package,
+  Plus,
+  Search,
+  RefreshCw,
+  Edit2,
+  Power,
+  SlidersHorizontal,
+  Archive,
+  Image as ImageIcon,
+} from 'lucide-react';
 import api from '../../services/api';
-
-function StatusBadge({ status }) {
-  const isActive = status === 'ACTIVE';
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide
-        ${isActive
-          ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
-          : 'bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30'
-        }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-      {isActive ? 'Active' : 'Suspended'}
-    </span>
-  );
-}
+import MercuryCard from './mercury/MercuryCard';
+import MercuryKpiCard from './mercury/MercuryKpiCard';
+import MercuryTable from './mercury/MercuryTable';
+import MercuryButton from './mercury/MercuryButton';
+import MercuryInput from './mercury/MercuryInput';
+import MercuryBadge from './mercury/MercuryBadge';
+import MercuryModal from './mercury/MercuryModal';
 
 export default function ProductsTab() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Filter states
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [stockFilter, setStockFilter] = useState('ALL'); // 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
+  const [stockFilter, setStockFilter] = useState('ALL');
 
-  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
+  const [modalMode, setModalMode] = useState('add');
   const [currentProduct, setCurrentProduct] = useState(null);
   const [saving, setSaving] = useState(false);
   const [paymentRules, setPaymentRules] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Use the admin endpoint that returns all products, regardless of status
       const { data } = await api.get('/admin/products');
-      setProducts(data);
+      setProducts(data || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load products.');
     } finally {
@@ -51,7 +51,7 @@ export default function ProductsTab() {
   const fetchRules = async () => {
     try {
       const { data } = await api.get('/admin/orders/payment-rules');
-      setPaymentRules(data);
+      setPaymentRules(data || []);
     } catch (err) {
       console.error('Failed to load payment rules:', err);
     }
@@ -65,7 +65,9 @@ export default function ProductsTab() {
   const handleToggleStatus = async (productId, currentStatus) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const { data: updated } = await api.patch(`/admin/products/${productId}/status`, { status: newStatus });
+      const { data: updated } = await api.patch(`/admin/products/${productId}/status`, {
+        status: newStatus,
+      });
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to toggle status');
@@ -87,9 +89,8 @@ export default function ProductsTab() {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     setSaving(true);
-    
+
     const formData = new FormData(e.target);
-    // Remove empty fields
     for (let [key, value] of formData.entries()) {
       if (!value) formData.delete(key);
     }
@@ -101,7 +102,7 @@ export default function ProductsTab() {
         });
         setProducts((prev) => [data, ...prev]);
       } else {
-        const { data } = await api.put(`/admin/products/${currentProduct.id}`, formData, {
+        const { data } = await api.patch(`/admin/products/${currentProduct.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         setProducts((prev) => prev.map((p) => (p.id === data.id ? data : p)));
@@ -114,13 +115,15 @@ export default function ProductsTab() {
     }
   };
 
-  // Categories list
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
-  const lowStockCount = products.filter(p => (p.stock || 0) < 5).length;
-  const activeCount = products.filter(p => p.status === 'ACTIVE').length;
+  const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+  const activeCount = products.filter((p) => p.status === 'ACTIVE').length;
+  const lowStockCount = products.filter((p) => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
+  const avgPrice =
+    products.length > 0
+      ? products.reduce((sum, p) => sum + Number(p.price || 0), 0) / products.length
+      : 0;
 
-  // Filtered Products
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = products.filter((p) => {
     const matchesSearch =
       (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.unique_code || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -128,382 +131,358 @@ export default function ProductsTab() {
     const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
 
     let matchesStock = true;
-    if (stockFilter === 'IN_STOCK') matchesStock = (p.stock || 0) >= 5;
-    else if (stockFilter === 'LOW_STOCK') matchesStock = (p.stock || 0) > 0 && (p.stock || 0) < 5;
-    else if (stockFilter === 'OUT_OF_STOCK') matchesStock = (p.stock || 0) === 0;
+    if (stockFilter === 'IN_STOCK') matchesStock = (p.stock || 0) > 5;
+    else if (stockFilter === 'LOW_STOCK') matchesStock = (p.stock || 0) > 0 && (p.stock || 0) <= 5;
+    else if (stockFilter === 'OUT_OF_STOCK') matchesStock = (p.stock || 0) <= 0;
 
     return matchesSearch && matchesCategory && matchesStock;
   });
 
-  if (loading && products.length === 0) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">Products</h2>
-          <div className="w-32 h-10 bg-slate-800 rounded-xl"></div>
+  const columns = [
+    {
+      header: 'Product',
+      key: 'name',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          {row.image_url ? (
+            <img
+              src={row.image_url}
+              alt=""
+              className="w-9 h-9 rounded-[6px] object-cover border border-[#E1E4E8] bg-[#FAFAFB]"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-[6px] bg-[#F4F5F7] border border-[#E1E4E8] flex items-center justify-center text-[#8B93A1]">
+              <Package className="w-4 h-4" strokeWidth={1.5} />
+            </div>
+          )}
+          <div>
+            <div className="font-medium text-[#1B1D22]">{row.name}</div>
+            <div className="text-[11px] text-[#8B93A1] font-mono tracking-tight">
+              {row.unique_code || `#${row.id}`}
+            </div>
+          </div>
         </div>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 bg-slate-800 rounded-xl"></div>
-        ))}
-      </div>
-    );
-  }
+      ),
+    },
+    {
+      header: 'Category',
+      key: 'category',
+      accessor: 'category',
+      cellClassName: 'text-[#5F6877]',
+    },
+    {
+      header: 'Price',
+      key: 'price',
+      isNumeric: true,
+      render: (row) => (
+        <span className="font-mono tabular-nums font-semibold text-[#1B1D22]">
+          GH₵ {Number(row.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </span>
+      ),
+    },
+    {
+      header: 'Stock',
+      key: 'stock',
+      isNumeric: true,
+      render: (row) => {
+        const stock = row.stock || 0;
+        let variant = 'success';
+        if (stock <= 0) variant = 'danger';
+        else if (stock <= 5) variant = 'warning';
+
+        return (
+          <MercuryBadge variant={variant}>
+            {stock <= 0 ? 'Out of Stock' : `${stock} units`}
+          </MercuryBadge>
+        );
+      },
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      render: (row) => (
+        <MercuryBadge variant={row.status === 'ACTIVE' ? 'success' : 'danger'}>
+          {row.status === 'ACTIVE' ? 'Active' : 'Suspended'}
+        </MercuryBadge>
+      ),
+    },
+    {
+      header: 'Actions',
+      key: 'actions',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <MercuryButton
+            size="sm"
+            variant="secondary"
+            icon={Edit2}
+            onClick={() => openEditModal(row)}
+          >
+            Edit
+          </MercuryButton>
+          <MercuryButton
+            size="sm"
+            variant={row.status === 'ACTIVE' ? 'destructive' : 'secondary'}
+            icon={Power}
+            onClick={() => handleToggleStatus(row.id, row.status)}
+          >
+            {row.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+          </MercuryButton>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Products Catalogue</h2>
-          <p className="text-slate-400 text-sm mt-0.5">Manage store products, live pricing, stock inventory, and payment rules.</p>
-        </div>
-        <button
-          onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-500/20 transition-all text-xs flex items-center gap-2 self-start sm:self-auto"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          Add Product
-        </button>
-      </div>
-
-      {/* KPI Chips */}
-      <div className="flex flex-wrap gap-3">
-        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
-          <span className="text-slate-400">Total Products:</span>
-          <span className="font-bold text-white">{products.length}</span>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
-          <span className="text-slate-400">Active Listing:</span>
-          <span className="font-bold text-emerald-400">{activeCount}</span>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-xl text-xs flex items-center gap-2">
-          <span className="text-slate-400">Low Stock (&lt; 5):</span>
-          <span className={`font-bold ${lowStockCount > 0 ? 'text-rose-400' : 'text-slate-400'}`}>{lowStockCount}</span>
-        </div>
-      </div>
-
-      {/* Toolbar: Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Search by product name or unique code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-900/60 border border-slate-700/50 text-slate-200 rounded-xl pl-10 pr-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
-          />
+          <h1 className="text-[20px] font-medium text-[#1B1D22] tracking-tight mercury-title">
+            Products Catalog
+          </h1>
+          <p className="text-[13px] text-[#5F6877] mt-0.5">
+            Manage live pricing, stock counts, and payment policy links
+          </p>
         </div>
 
-        {categories.length > 0 && (
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-slate-900/60 border border-slate-700/50 text-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
+        <div className="flex items-center gap-2">
+          <MercuryButton
+            variant="secondary"
+            icon={RefreshCw}
+            onClick={fetchProducts}
+            disabled={loading}
           >
-            <option value="ALL">All Categories</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
-
-        <select
-          value={stockFilter}
-          onChange={(e) => setStockFilter(e.target.value)}
-          className="bg-slate-900/60 border border-slate-700/50 text-slate-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition-all outline-none"
-        >
-          <option value="ALL">All Stock Levels</option>
-          <option value="IN_STOCK">In Stock (&ge; 5)</option>
-          <option value="LOW_STOCK">Low Stock (1 - 4)</option>
-          <option value="OUT_OF_STOCK">Out of Stock (0)</option>
-        </select>
-      </div>
-
-      {error && <div className="text-rose-400 bg-rose-500/10 p-4 rounded-xl border border-rose-500/30">{error}</div>}
-
-      {/* Table */}
-      <div className="bg-slate-900/60 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl shadow-black/20">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-800/80 text-slate-400 uppercase text-xs tracking-wider">
-              <tr>
-                <th className="px-6 py-4 font-semibold w-16">Image</th>
-                <th className="px-6 py-4 font-semibold">Name</th>
-                <th className="px-6 py-4 font-semibold">Code</th>
-                <th className="px-6 py-4 font-semibold">Type</th>
-                <th className="px-6 py-4 font-semibold">Category</th>
-                <th className="px-6 py-4 font-semibold">Stock</th>
-                <th className="px-6 py-4 font-semibold">Price</th>
-                <th className="px-6 py-4 font-semibold">Payment Rule</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/50 text-slate-300">
-              {filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
-                    <span className="text-3xl block mb-2">🔍</span>
-                    No products matching search or filter criteria.
-                  </td>
-                </tr>
-              ) : (
-                filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4">
-                      <img src={product.image_url} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-slate-800 border border-slate-700" />
-                    </td>
-                    <td className="px-6 py-4 font-medium text-slate-200">{product.name}</td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-400">{product.unique_code}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-300">{product.type}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-300">{product.category || '-'}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-300">
-                      {product.stock !== undefined ? product.stock : 0}
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-indigo-400">
-                      GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4">
-                      {product.payment_rule ? (
-                        <span className="bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 px-2.5 py-1 rounded-full text-xs font-semibold">
-                          {product.payment_rule.name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 italic text-xs">Default Rule</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={product.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-3">
-                      <button
-                        onClick={() => openEditModal(product)}
-                        className="text-slate-400 hover:text-indigo-400 font-medium text-xs transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(product.id, product.status)}
-                        className={`font-medium text-xs transition-colors ${
-                          product.status === 'ACTIVE' ? 'text-rose-400 hover:text-rose-300' : 'text-emerald-400 hover:text-emerald-300'
-                        }`}
-                      >
-                        {product.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+            Refresh
+          </MercuryButton>
+          <MercuryButton
+            variant="primary"
+            icon={Plus}
+            onClick={openAddModal}
+          >
+            Add Product
+          </MercuryButton>
         </div>
       </div>
 
-      {/* Modal Overlay */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-[#0d1117] border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] my-auto overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center shrink-0 bg-[#0d1117]">
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  {modalMode === 'add' ? 'Add New Product' : 'Edit Product'}
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {modalMode === 'add' ? 'Fill out all specifications and upload product media' : `Updating product #${currentProduct?.id}`}
-                </p>
-              </div>
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-            
-            {/* Scrollable Form Body */}
-            <form onSubmit={handleSaveProduct} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                
-                {/* Product Name */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                    Product Name <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    name="name"
-                    type="text"
-                    required={modalMode === 'add'}
-                    defaultValue={currentProduct?.name || ''}
-                    placeholder="e.g. iPhone 16 Pro Max 256GB Titanium"
-                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
-                  />
-                </div>
-                
-                {/* Description */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                    Description & Specifications <span className="text-rose-400">*</span>
-                  </label>
-                  <textarea
-                    name="description"
-                    required={modalMode === 'add'}
-                    defaultValue={currentProduct?.description || ''}
-                    rows={3}
-                    placeholder="Provide overview, key features, condition, warranty..."
-                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 resize-none transition"
-                  />
-                </div>
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MercuryKpiCard
+          label="Total Products"
+          value={products.length}
+          delta="+2 this week"
+          deltaType="positive"
+          icon={Package}
+        />
+        <MercuryKpiCard
+          label="Active Storefront Listings"
+          value={activeCount}
+          delta={`${products.length - activeCount} suspended`}
+          deltaType={products.length - activeCount > 0 ? 'neutral' : 'positive'}
+          icon={Archive}
+        />
+        <MercuryKpiCard
+          label="Low Stock Watchlist"
+          value={lowStockCount}
+          delta={lowStockCount > 0 ? 'Restock needed' : 'Optimal'}
+          deltaType={lowStockCount > 0 ? 'negative' : 'positive'}
+          deltaPeriod="≤ 5 units"
+          icon={Archive}
+        />
+        <MercuryKpiCard
+          label="Average Product Price"
+          value={`GH₵ ${avgPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+          subtext="Catalog mean"
+          icon={Package}
+        />
+      </div>
 
-                {/* Price and Stock Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                      Price (GH₵) <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      name="price"
-                      type="number"
-                      step="0.01"
-                      required={modalMode === 'add'}
-                      defaultValue={currentProduct?.price || ''}
-                      placeholder="0.00"
-                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition font-mono"
-                    />
-                  </div>
+      {/* Filters Bar */}
+      <MercuryCard padding="sm" className="space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="w-full sm:w-80">
+            <MercuryInput
+              placeholder="Search by name, SKU or 8-char code..."
+              icon={Search}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                      Stock Quantity <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      name="stock"
-                      type="number"
-                      min="0"
-                      required={modalMode === 'add'}
-                      defaultValue={currentProduct?.stock !== undefined ? currentProduct.stock : 10}
-                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Type and Category Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                      Product Type
-                    </label>
-                    <select
-                      name="type"
-                      defaultValue={currentProduct?.type || 'SINGLE'}
-                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
-                    >
-                      <option value="SINGLE">Single Device</option>
-                      <option value="COMBO">Combo / Bundle Set</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                      Category
-                    </label>
-                    <input
-                      name="category"
-                      type="text"
-                      defaultValue={currentProduct?.category || ''}
-                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
-                      placeholder="e.g. phones, laptops, consoles, audio"
-                    />
-                  </div>
-                </div>
-
-                {/* Payment Rule Select */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                    Hire Purchase / Payment Rule
-                  </label>
-                  <select
-                    name="payment_rule_id"
-                    defaultValue={currentProduct?.payment_rule_id || ''}
-                    className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
-                  >
-                    <option value="">Default Rule (Global default installment terms)</option>
-                    {paymentRules.map(rule => (
-                      <option key={rule.id} value={rule.id}>
-                        {rule.name} ({rule.default_penalty_pct}% penalty, {rule.default_deadline_days} days)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Image Upload */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                    Product Image {modalMode === 'add' ? <span className="text-rose-400">*</span> : <span className="normal-case font-normal text-slate-500">(Leave blank to keep current)</span>}
-                  </label>
-                  <input
-                    name="image"
-                    type="file"
-                    accept="image/*"
-                    required={modalMode === 'add'}
-                    className="w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/30 transition cursor-pointer bg-slate-800/40 p-2 rounded-xl border border-slate-700/60"
-                  />
-                  {modalMode === 'edit' && currentProduct?.image_url && (
-                    <div className="flex items-center gap-3 mt-2 p-2 bg-slate-800/30 rounded-xl border border-slate-700/40">
-                      <img src={currentProduct.image_url} alt="Current" className="w-10 h-10 object-contain rounded-lg bg-slate-900 border border-slate-700" />
-                      <span className="text-xs text-slate-400">Current product photo uploaded</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status if editing */}
-                {modalMode === 'edit' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">Status</label>
-                    <select
-                      name="status"
-                      defaultValue={currentProduct?.status || 'ACTIVE'}
-                      className="w-full bg-slate-800/70 border border-slate-700 text-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 transition"
-                    >
-                      <option value="ACTIVE">Active</option>
-                      <option value="SUSPENDED">Suspended</option>
-                    </select>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Sticky Modal Footer Actions */}
-              <div className="px-6 py-4 border-t border-slate-700/50 flex justify-end gap-3 bg-slate-900/80 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
-                >
-                  {saving && (
-                    <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                  )}
-                  <span>{saving ? 'Saving...' : modalMode === 'add' ? 'Create Product' : 'Save Changes'}</span>
-                </button>
-              </div>
-            </form>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setStockFilter('ALL')}
+              className={`px-3 py-1.5 rounded-[6px] text-[12px] font-medium transition-colors ${
+                stockFilter === 'ALL'
+                  ? 'bg-[#EEF0FD] text-[#5266EB]'
+                  : 'text-[#5F6877] hover:bg-[#F4F5F7]'
+              }`}
+            >
+              All Stock
+            </button>
+            <button
+              onClick={() => setStockFilter('LOW_STOCK')}
+              className={`px-3 py-1.5 rounded-[6px] text-[12px] font-medium transition-colors ${
+                stockFilter === 'LOW_STOCK'
+                  ? 'bg-[#EEF0FD] text-[#5266EB]'
+                  : 'text-[#5F6877] hover:bg-[#F4F5F7]'
+              }`}
+            >
+              Low Stock ({lowStockCount})
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Category Pills */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-1 border-t border-[#F4F5F7]">
+          {['ALL', ...categories].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1 rounded-[6px] text-[12px] font-medium whitespace-nowrap transition-colors ${
+                categoryFilter === cat
+                  ? 'bg-[#EEF0FD] text-[#5266EB]'
+                  : 'text-[#5F6877] hover:bg-[#F4F5F7]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </MercuryCard>
+
+      {/* Products Table */}
+      <MercuryTable
+        columns={columns}
+        data={filteredProducts}
+        keyField="id"
+        isLoading={loading}
+        selectedIds={selectedIds}
+        onSelectRow={(id) =>
+          setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+          )
+        }
+        onSelectAll={() =>
+          setSelectedIds(
+            selectedIds.length === filteredProducts.length
+              ? []
+              : filteredProducts.map((p) => p.id)
+          )
+        }
+        bulkActions={
+          <MercuryButton size="sm" variant="secondary">
+            Bulk Price Update
+          </MercuryButton>
+        }
+        emptyMessage="No products match your filter search."
+      />
+
+      {/* Add / Edit Product Modal */}
+      <MercuryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalMode === 'add' ? 'Add New Product' : 'Edit Product'}
+        description="Configure product name, pricing, stock count, and images."
+      >
+        <form onSubmit={handleSaveProduct} className="space-y-4">
+          <MercuryInput
+            label="Product Title"
+            name="name"
+            defaultValue={currentProduct?.name || ''}
+            required
+            placeholder="e.g. Samsung Double-Door Refrigerator"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <MercuryInput
+              label="Price (GH₵)"
+              name="price"
+              type="number"
+              step="0.01"
+              defaultValue={currentProduct?.price || ''}
+              required
+              placeholder="0.00"
+            />
+            <MercuryInput
+              label="Warehouse Stock"
+              name="stock"
+              type="number"
+              defaultValue={currentProduct?.stock || 0}
+              required
+              placeholder="10"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                Category
+              </label>
+              <select
+                name="category"
+                defaultValue={currentProduct?.category || 'Phones'}
+                className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+              >
+                <option value="Phones">Phones</option>
+                <option value="Refrigerators">Refrigerators</option>
+                <option value="Washing">Washing</option>
+                <option value="AC Units">AC Units</option>
+                <option value="Microwaves">Microwaves</option>
+                <option value="Accessories">Accessories</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                Product Type
+              </label>
+              <select
+                name="type"
+                defaultValue={currentProduct?.type || 'SINGLE'}
+                className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+              >
+                <option value="SINGLE">Single Item</option>
+                <option value="COMBO">Combo Bundle</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+              Description
+            </label>
+            <textarea
+              name="description"
+              rows={3}
+              defaultValue={currentProduct?.description || ''}
+              placeholder="Product specs, warranty details, and specifications..."
+              className="w-full bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] p-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+              Product Image File (Cloudinary)
+            </label>
+            <input
+              type="file"
+              name="image"
+              accept="image/*"
+              className="w-full text-[13px] text-[#5F6877] file:mr-3 file:py-1.5 file:px-3 file:rounded-[6px] file:border file:border-[#CDD1D8] file:bg-[#F4F5F7] file:text-[12px] file:font-medium file:text-[#1B1D22] hover:file:bg-[#ECEEF1] cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E4E8]">
+            <MercuryButton variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </MercuryButton>
+            <MercuryButton variant="primary" type="submit" disabled={saving}>
+              {saving ? 'Saving...' : modalMode === 'add' ? 'Create Product' : 'Save Changes'}
+            </MercuryButton>
+          </div>
+        </form>
+      </MercuryModal>
     </div>
   );
 }

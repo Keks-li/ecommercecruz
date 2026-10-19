@@ -1,7 +1,14 @@
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 export const getAllOrders = async (req, res) => {
   try {
+    const cached = cache.get('orders:admin');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const orders = await prisma.order.findMany({
       include: {
         user: {
@@ -31,6 +38,9 @@ export const getAllOrders = async (req, res) => {
       },
       orderBy: { id: 'desc' },
     });
+
+    cache.set('orders:admin', orders, 20);
+    res.set('X-Cache', 'MISS');
     res.json(orders);
   } catch (error) {
     console.error('Error fetching admin orders:', error);
@@ -110,6 +120,9 @@ export const updateOrderStatus = async (req, res) => {
         },
       },
     });
+
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
 
     return res.status(200).json(order);
   } catch (error) {

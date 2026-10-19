@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,6 +182,12 @@ export async function processSuccessfulPayment({
     };
   });
 
+  if (!result.alreadyProcessed) {
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('revenue:');
+  }
+
   return result;
 }
 
@@ -316,6 +323,10 @@ export const initializeCheckoutPayment = async (req, res) => {
         },
       });
     });
+
+    cache.invalidate('orders:');
+    cache.invalidate('products:');
+    cache.invalidate('stats:');
 
     // 3. Initialize Paystack transaction
     const reference = `CRZ-INIT-${order.id}-${Date.now()}`;

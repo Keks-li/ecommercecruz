@@ -6,6 +6,14 @@ import Navbar from '../components/shop/Navbar';
 import CartDrawer from '../components/shop/CartDrawer';
 import Footer from '../components/shop/Footer';
 
+const optimizeCloudinaryUrl = (url, width = 800) => {
+  if (!url) return '';
+  if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('f_auto')) {
+    return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  }
+  return url;
+};
+
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -135,7 +143,7 @@ export default function ProductDetails() {
           <div className="lg:col-span-6 space-y-4">
             <div className="relative aspect-square w-full rounded-3xl bg-white border border-slate-200 p-8 flex items-center justify-center overflow-hidden shadow-sm group">
               <img
-                src={product.image_url}
+                src={optimizeCloudinaryUrl(product.image_url, 800)}
                 alt={product.name}
                 className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
               />

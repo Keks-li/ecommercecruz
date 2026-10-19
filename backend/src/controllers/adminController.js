@@ -2,10 +2,17 @@ import prisma from '../utils/prisma.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { sendEmailConfirmation } from '../utils/mailer.js';
+import cache from '../utils/cache.js';
 
 export const getStats = async (req, res) => {
   try {
     const { date } = req.query;
+    const cacheKey = `stats:${date || 'all'}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
     let dateFilter = {};
     let userDateFilter = {};
     let orderItemFilter = {};
@@ -23,85 +30,90 @@ export const getStats = async (req, res) => {
       orderItemFilter = { order: { created_at: { gte: startOfDay, lte: endOfDay } } };
     }
 
-    // 1. Core counters
-    const totalActiveUsers = await prisma.user.count({
-      where: { role: 'CUSTOMER', status: 'ACTIVE', ...userDateFilter },
-    });
+    // Parallel execution of all stats queries
+    const [
+      totalActiveUsers,
+      totalCustomers,
+      totalOrders,
+      revenueResult,
+      pendingOrders,
+      lowStockProductsCount,
+      lowStockProductsList,
+      recentOrders,
+      orderItems,
+    ] = await Promise.all([
+      prisma.user.count({
+        where: { role: 'CUSTOMER', status: 'ACTIVE', ...userDateFilter },
+      }),
+      prisma.user.count({
+        where: { role: 'CUSTOMER', ...userDateFilter },
+      }),
+      prisma.order.count({
+        where: { ...dateFilter },
+      }),
+      prisma.order.aggregate({
+        where: { ...dateFilter },
+        _sum: { total_price: true },
+      }),
+      prisma.order.count({
+        where: { status: 'PENDING', ...dateFilter },
+      }),
+      prisma.product.count({
+        where: { status: 'ACTIVE', stock: { lt: 5 } },
+      }),
+      prisma.product.findMany({
+        where: { status: 'ACTIVE', stock: { lt: 5 } },
+        select: {
+          id: true,
+          name: true,
+          unique_code: true,
+          stock: true,
+          price: true,
+          image_url: true,
+        },
+      }),
+      prisma.order.findMany({
+        where: { ...dateFilter },
+        take: 5,
+        orderBy: { id: 'desc' },
+        include: {
+          user: {
+            select: { email: true },
+          },
+          items: {
+            include: {
+              product: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.orderItem.findMany({
+        where: { ...orderItemFilter },
+        include: { product: true },
+      }),
+    ]);
 
-    const totalCustomers = await prisma.user.count({
-      where: { role: 'CUSTOMER', ...userDateFilter },
-    });
-
-    const totalOrders = await prisma.order.count({
-      where: { ...dateFilter },
-    });
-
-    const revenueResult = await prisma.order.aggregate({
-      where: { ...dateFilter },
-      _sum: { total_price: true },
-    });
     const totalRevenue = revenueResult._sum.total_price || 0;
 
-    const pendingOrders = await prisma.order.count({
-      where: { status: 'PENDING', ...dateFilter },
-    });
-
-    const lowStockProductsCount = await prisma.product.count({
-      where: { status: 'ACTIVE', stock: { lt: 5 } },
-    });
-
-    const lowStockProductsList = await prisma.product.findMany({
-      where: { status: 'ACTIVE', stock: { lt: 5 } },
-      select: {
-        id: true,
-        name: true,
-        unique_code: true,
-        stock: true,
-        price: true,
-        image_url: true,
-      },
-    });
-
-    // 2. Recent orders feed (take 5)
-    const recentOrders = await prisma.order.findMany({
-      where: { ...dateFilter },
-      take: 5,
-      orderBy: { id: 'desc' },
-      include: {
-        user: {
-          select: { email: true }
-        },
-        items: {
-          include: {
-            product: {
-              select: { name: true }
-            }
-          }
-        }
-      }
-    });
-
-    const formattedRecentOrders = recentOrders.map(o => ({
+    const formattedRecentOrders = recentOrders.map((o) => ({
       id: o.id,
-      customerEmail: o.user.email,
+      customerEmail: o.user?.email || 'Guest',
       totalPrice: o.total_price,
       status: o.status,
       pickupCity: o.pickup_city,
       createdAt: o.created_at,
-      items: o.items.map(item => ({
+      items: o.items.map((item) => ({
         productName: item.product?.name || 'Unknown Product',
         quantity: item.quantity,
-        price: item.price
-      }))
+        price: item.price,
+      })),
     }));
 
-    // 3. Top selling products (take 5)
-    const orderItems = await prisma.orderItem.findMany({
-      where: { ...orderItemFilter },
-      include: { product: true }
-    });
+    // Top selling products (take 5)
     const productSales = {};
-    orderItems.forEach(item => {
+    orderItems.forEach((item) => {
       const pid = item.product_id;
       if (item.product) {
         if (!productSales[pid]) {
@@ -113,7 +125,7 @@ export const getStats = async (req, res) => {
             unique_code: item.product.unique_code,
             stock: item.product.stock,
             quantitySold: 0,
-            totalRevenue: 0
+            totalRevenue: 0,
           };
         }
         productSales[pid].quantitySold += item.quantity;
@@ -124,7 +136,7 @@ export const getStats = async (req, res) => {
       .sort((a, b) => b.quantitySold - a.quantitySold)
       .slice(0, 5);
 
-    res.json({
+    const responseData = {
       totalRevenue,
       totalOrders,
       totalActiveUsers,
@@ -134,7 +146,11 @@ export const getStats = async (req, res) => {
       lowStockProductsList,
       recentOrders: formattedRecentOrders,
       topSellingProducts,
-    });
+    };
+
+    cache.set(cacheKey, responseData, 30);
+    res.set('X-Cache', 'MISS');
+    res.json(responseData);
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -143,6 +159,12 @@ export const getStats = async (req, res) => {
 
 export const getAllCustomers = async (req, res) => {
   try {
+    const cached = cache.get('customers:all');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const customers = await prisma.user.findMany({
       where: {
         role: 'CUSTOMER',
@@ -159,6 +181,9 @@ export const getAllCustomers = async (req, res) => {
         created_at: true,
       },
     });
+
+    cache.set('customers:all', customers, 30);
+    res.set('X-Cache', 'MISS');
     res.json(customers);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -195,6 +220,10 @@ export const toggleCustomerStatus = async (req, res) => {
       },
     });
 
+    cache.invalidate('customers:');
+    cache.invalidate('stats:');
+    cache.invalidate(`user:status:${id}`);
+
     res.json(updatedUser);
   } catch (error) {
     console.error('Error toggling customer status:', error);
@@ -227,23 +256,49 @@ export const getRevenueRealized = async (req, res) => {
       }
     }
 
-    // 1. Fetch transactions within scope
-    const transactions = await prisma.paymentTransaction.findMany({
-      where: { ...dateFilter },
-      include: {
-        order: {
-          select: {
-            id: true,
-            total_price: true,
-            amount_paid: true,
-            payment_status: true,
-            status: true,
-            user: { select: { id: true, email: true } },
+    const cacheKey = `revenue:realized:${startDate || ''}_${endDate || ''}_${date || ''}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
+    // Parallel fetch of transactions, orders, and low-stock products
+    const [transactions, ordersResult, lowStockCount, lowStockProducts] = await Promise.all([
+      prisma.paymentTransaction.findMany({
+        where: { ...dateFilter },
+        include: {
+          order: {
+            select: {
+              id: true,
+              total_price: true,
+              amount_paid: true,
+              payment_status: true,
+              status: true,
+              user: { select: { id: true, email: true } },
+            },
           },
         },
-      },
-      orderBy: { created_at: 'desc' },
-    });
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.order.findMany({
+        select: {
+          id: true,
+          total_price: true,
+          amount_paid: true,
+          penalty_amount: true,
+          payment_status: true,
+        },
+      }),
+      prisma.product.count({
+        where: { status: 'ACTIVE', stock: { lt: 5 } },
+      }),
+      prisma.product.findMany({
+        where: { status: 'ACTIVE', stock: { lt: 5 } },
+        select: { id: true, name: true, unique_code: true, stock: true, image_url: true, price: true },
+        take: 6,
+      }),
+    ]);
 
     // 2. Aggregate cash flow sums
     let grossInflows = 0;
@@ -263,16 +318,6 @@ export const getRevenueRealized = async (req, res) => {
     const netRealizedRevenue = grossInflows - totalRefunds;
 
     // 3. Overall Order contracts & receivables
-    const ordersResult = await prisma.order.findMany({
-      select: {
-        id: true,
-        total_price: true,
-        amount_paid: true,
-        penalty_amount: true,
-        payment_status: true,
-      },
-    });
-
     let totalContracted = 0;
     let totalOutstanding = 0;
     let totalPenalties = 0;
@@ -313,17 +358,7 @@ export const getRevenueRealized = async (req, res) => {
 
     const dailyTrend = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
 
-    // 5. Critical low stock inventory
-    const lowStockCount = await prisma.product.count({
-      where: { status: 'ACTIVE', stock: { lt: 5 } },
-    });
-    const lowStockProducts = await prisma.product.findMany({
-      where: { status: 'ACTIVE', stock: { lt: 5 } },
-      select: { id: true, name: true, unique_code: true, stock: true, image_url: true, price: true },
-      take: 6,
-    });
-
-    return res.json({
+    const responseData = {
       summary: {
         netRealizedRevenue,
         grossInflows,
@@ -353,7 +388,11 @@ export const getRevenueRealized = async (req, res) => {
         orderTotal: tx.order?.total_price || 0,
         paymentStatus: tx.order?.payment_status || 'PENDING',
       })),
-    });
+    };
+
+    cache.set(cacheKey, responseData, 30);
+    res.set('X-Cache', 'MISS');
+    return res.json(responseData);
   } catch (error) {
     console.error('Error calculating realized revenue:', error);
     return res.status(500).json({ error: 'Internal server error' });

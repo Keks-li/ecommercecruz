@@ -161,6 +161,7 @@ app.get(['/sitemap.xml', '/api/sitemap.xml'], async (req, res) => {
     res.type('application/xml');
     res.send(xml);
   } catch (err) {
+    console.error('Sitemap error:', err);
     res.status(500).type('text/plain').send('Error generating sitemap');
   }
 });

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 // Grouping middlewares for protected routes
 export const protect = async (req, res, next) => {
@@ -44,9 +45,18 @@ export const checkStatus = async (req, res, next) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
-    });
+    const cacheKey = `user:status:${req.user.id}`;
+    let user = cache.get(cacheKey);
+
+    if (!user) {
+      user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true, email: true, status: true, role: true },
+      });
+      if (user) {
+        cache.set(cacheKey, user, 15);
+      }
+    }
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });

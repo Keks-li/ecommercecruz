@@ -1,5 +1,24 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import {
+  ShieldCheck,
+  Mail,
+  KeyRound,
+  FileText,
+  Sliders,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+} from 'lucide-react';
 import api from '../../services/api';
+import MercuryCard from './mercury/MercuryCard';
+import MercuryButton from './mercury/MercuryButton';
+import MercuryInput from './mercury/MercuryInput';
+import MercuryBadge from './mercury/MercuryBadge';
+import MercuryTabs from './mercury/MercuryTabs';
+import PaymentRulesTab from './PaymentRulesTab';
+import AuditLogTab from './AuditLogTab';
+import CancellationsTab from './CancellationsTab';
 
 export default function AdminSettingsTab() {
   const [user, setUser] = useState(() => {
@@ -9,6 +28,8 @@ export default function AdminSettingsTab() {
       return {};
     }
   });
+
+  const [activeSubTab, setActiveSubTab] = useState('account');
 
   // Email form state
   const [newEmail, setNewEmail] = useState('');
@@ -37,14 +58,12 @@ export default function AdminSettingsTab() {
       setEmailError('Please enter a new email address.');
       return;
     }
-
     if (newEmail.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
-      setEmailError('The confirmation email does not match the new email address.');
+      setEmailError('Confirmation email does not match.');
       return;
     }
-
     if (!emailCurrentPassword) {
-      setEmailError('Please enter your current password to authorize this change.');
+      setEmailError('Please enter your current password.');
       return;
     }
 
@@ -56,19 +75,14 @@ export default function AdminSettingsTab() {
       });
 
       setEmailSuccess(
-        data.message ||
-        `Confirmation link has been sent to ${newEmail}. Please click the link to verify and activate your new email.`
+        data.message || `Confirmation link sent to ${newEmail}. Please click to activate.`
       );
-      if (data.confirmationUrl) {
-        setPreviewLink(data.confirmationUrl);
-      }
+      if (data.confirmationUrl) setPreviewLink(data.confirmationUrl);
       setNewEmail('');
       setConfirmEmail('');
       setEmailCurrentPassword('');
     } catch (err) {
-      setEmailError(
-        err.response?.data?.error || 'Failed to dispatch email confirmation. Please verify your current password.'
-      );
+      setEmailError(err.response?.data?.error || 'Failed to dispatch email confirmation.');
     } finally {
       setEmailLoading(false);
     }
@@ -83,12 +97,10 @@ export default function AdminSettingsTab() {
       setPasswordError('Please provide your current password.');
       return;
     }
-
     if (!newPassword || newPassword.length < 6) {
       setPasswordError('New password must be at least 6 characters long.');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       setPasswordError('New passwords do not match.');
       return;
@@ -100,268 +112,174 @@ export default function AdminSettingsTab() {
         currentPassword,
         newPassword,
       });
-
-      setPasswordSuccess(data.message || 'Password changed successfully!');
+      setPasswordSuccess(data.message || 'Password updated successfully.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setTimeout(() => setPasswordSuccess(''), 5000);
     } catch (err) {
-      setPasswordError(
-        err.response?.data?.error || 'Failed to change password. Please verify your current password.'
-      );
+      setPasswordError(err.response?.data?.error || 'Failed to update password.');
     } finally {
       setPasswordLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
-      
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Top Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Admin Account Security</h1>
-        <p className="text-slate-400 text-xs sm:text-sm mt-1">
-          Manage your administrator email and login password. Email updates require link confirmation.
+        <h1 className="text-[20px] font-medium text-[#1B1D22] tracking-tight mercury-title">
+          Settings &amp; Administration
+        </h1>
+        <p className="text-[13px] text-[#5F6877] mt-0.5">
+          Configure security credentials, payment policies, cancellations, and immutable audit logs
         </p>
       </div>
 
-      {/* Account Info Pill */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-lg">
-            {(user.email || 'A').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white">{user.email || 'admin@cruzaro.com'}</span>
-              <span className="text-[10px] bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                Active Admin
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">Primary Root Administrator ID: #{user.id || 1}</p>
-          </div>
-        </div>
-        <div className="text-xs text-slate-400">
-          Role: <strong className="text-slate-200 font-mono">ADMIN</strong>
-        </div>
-      </div>
+      {/* Tabs */}
+      <MercuryTabs
+        tabs={[
+          { id: 'account', label: 'Account Security', icon: ShieldCheck },
+          { id: 'rules', label: 'Payment Terms & Rules', icon: Sliders },
+          { id: 'cancellations', label: 'Cancellation Requests', icon: AlertCircle },
+          { id: 'audit', label: 'Audit Trail', icon: FileText },
+        ]}
+        activeTab={activeSubTab}
+        onChange={setActiveSubTab}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-        
-        {/* ── Card 1: Change Email ── */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 flex flex-col justify-between shadow-sm">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Update Admin Email</h2>
-                <p className="text-xs text-slate-500">Requires email confirmation link verification</p>
-              </div>
+      {/* Tab Panels */}
+      {activeSubTab === 'account' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Email Update Panel */}
+          <MercuryCard className="space-y-4">
+            <div className="border-b border-[#E1E4E8] pb-3">
+              <h3 className="text-[14px] font-semibold text-[#1B1D22] flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#5266EB]" strokeWidth={1.5} />
+                <span>Primary Administrator Email</span>
+              </h3>
+              <p className="text-[12px] text-[#5F6877] mt-0.5">
+                Current email:{' '}
+                <strong className="text-[#1B1D22] font-mono">{user.email || 'admin@cruzaro.com'}</strong>
+              </p>
             </div>
 
-            {/* Email Success Banner */}
             {emailSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-4 text-xs space-y-2 leading-relaxed">
-                <div className="flex items-center gap-2 font-bold">
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Verification Link Sent!</span>
-                </div>
-                <p>{emailSuccess}</p>
-                {previewLink && (
-                  <div className="pt-1">
-                    <a
-                      href={previewLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono break-all inline-block"
-                    >
-                      Click here to test confirmation immediately
-                    </a>
-                  </div>
-                )}
+              <div className="p-3 bg-[#E8F5EE] border border-[#1E7B50]/20 rounded-[8px] text-[12px] text-[#1E7B50] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.5} />
+                <span>{emailSuccess}</span>
               </div>
             )}
 
-            {/* Email Error Banner */}
             {emailError && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl p-3.5 text-xs flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+              <div className="p-3 bg-[#FBEAEA] border border-[#C02B2B]/20 rounded-[8px] text-[12px] text-[#C02B2B] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.5} />
                 <span>{emailError}</span>
               </div>
             )}
 
-            <form onSubmit={handleRequestEmailChange} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  New Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="newadmin@cruzaro.com"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+            <form onSubmit={handleRequestEmailChange} className="space-y-3">
+              <MercuryInput
+                label="New Email Address"
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="newadmin@cruzaro.com"
+              />
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  Confirm New Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={confirmEmail}
-                  onChange={(e) => setConfirmEmail(e.target.value)}
-                  placeholder="Repeat new email address"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+              <MercuryInput
+                label="Confirm New Email"
+                type="email"
+                required
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+                placeholder="Repeat new email"
+              />
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  Current Admin Password (Security Verification)
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={emailCurrentPassword}
-                  onChange={(e) => setEmailCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+              <MercuryInput
+                label="Current Password Authorization"
+                type="password"
+                required
+                value={emailCurrentPassword}
+                onChange={(e) => setEmailCurrentPassword(e.target.value)}
+                placeholder="••••••••••••"
+              />
 
               <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={emailLoading}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm flex items-center justify-center gap-2"
-                >
-                  {emailLoading ? (
-                    <span>Dispatching Confirmation Link...</span>
-                  ) : (
-                    <span>Send Confirmation Email Link</span>
-                  )}
-                </button>
+                <MercuryButton variant="primary" type="submit" disabled={emailLoading}>
+                  {emailLoading ? 'Dispatching Verification...' : 'Send Verification Link'}
+                </MercuryButton>
               </div>
             </form>
-          </div>
-        </div>
+          </MercuryCard>
 
-        {/* ── Card 2: Change Password ── */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 flex flex-col justify-between shadow-sm">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Change Admin Password</h2>
-                <p className="text-xs text-slate-500">Update your master administrator credentials</p>
-              </div>
+          {/* Password Update Panel */}
+          <MercuryCard className="space-y-4">
+            <div className="border-b border-[#E1E4E8] pb-3">
+              <h3 className="text-[14px] font-semibold text-[#1B1D22] flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-[#5266EB]" strokeWidth={1.5} />
+                <span>Change Password</span>
+              </h3>
+              <p className="text-[12px] text-[#5F6877] mt-0.5">
+                Enforce strong alphanumeric passwords to protect merchant privileges
+              </p>
             </div>
 
-            {/* Password Success Banner */}
             {passwordSuccess && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-3.5 text-xs flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+              <div className="p-3 bg-[#E8F5EE] border border-[#1E7B50]/20 rounded-[8px] text-[12px] text-[#1E7B50] flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.5} />
                 <span>{passwordSuccess}</span>
               </div>
             )}
 
-            {/* Password Error Banner */}
             {passwordError && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl p-3.5 text-xs flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+              <div className="p-3 bg-[#FBEAEA] border border-[#C02B2B]/20 rounded-[8px] text-[12px] text-[#C02B2B] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={1.5} />
                 <span>{passwordError}</span>
               </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <MercuryInput
+                label="Current Password"
+                type="password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••••••"
+              />
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  New Password (min 6 characters)
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+              <MercuryInput
+                label="New Password"
+                type="password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+              />
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wide">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-800 text-white placeholder-slate-600 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition"
-                />
-              </div>
+              <MercuryInput
+                label="Confirm New Password"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat new password"
+              />
 
               <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={passwordLoading}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm flex items-center justify-center gap-2"
-                >
-                  {passwordLoading ? (
-                    <span>Updating Password...</span>
-                  ) : (
-                    <span>Update Password</span>
-                  )}
-                </button>
+                <MercuryButton variant="primary" type="submit" disabled={passwordLoading}>
+                  {passwordLoading ? 'Updating Password...' : 'Update Password'}
+                </MercuryButton>
               </div>
             </form>
-          </div>
+          </MercuryCard>
         </div>
+      )}
 
-      </div>
-
+      {activeSubTab === 'rules' && <PaymentRulesTab />}
+      {activeSubTab === 'cancellations' && <CancellationsTab />}
+      {activeSubTab === 'audit' && <AuditLogTab />}
     </div>
   );
 }

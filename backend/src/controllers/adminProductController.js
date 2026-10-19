@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma.js';
 import generateCode from '../utils/generateCode.js';
 import cloudinary from '../utils/cloudinary.js';
+import cache from '../utils/cache.js';
 
 export const createProduct = async (req, res) => {
   try {
@@ -48,6 +49,7 @@ export const createProduct = async (req, res) => {
             include: { payment_rule: true },
           });
 
+          cache.invalidate('products:');
           return res.status(201).json(product);
         } catch (dbError) {
           console.error('Database error creating product:', dbError);
@@ -84,6 +86,7 @@ export const updateProductStatus = async (req, res) => {
       data: { status },
     });
 
+    cache.invalidate('products:');
     return res.status(200).json(product);
   } catch (error) {
     console.error('Error updating product status:', error);
@@ -145,6 +148,7 @@ export const updateProduct = async (req, res) => {
       include: { payment_rule: true },
     });
 
+    cache.invalidate('products:');
     return res.status(200).json(product);
   } catch (error) {
     console.error('Error updating product:', error);
@@ -157,10 +161,19 @@ export const updateProduct = async (req, res) => {
 
 export const getAllProducts = async (req, res) => {
   try {
+    const cached = cache.get('products:admin');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const products = await prisma.product.findMany({
       include: { payment_rule: true },
       orderBy: { id: 'desc' },
     });
+
+    cache.set('products:admin', products, 30);
+    res.set('X-Cache', 'MISS');
     res.json(products);
   } catch (error) {
     console.error('Error fetching admin products:', error);

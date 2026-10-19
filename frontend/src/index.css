@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Mercury Color Tokens */
+  --white: #FFFFFF;
+  --ash-25: #FAFAFB;
+  --ash-50: #F4F5F7;
+  --ash-100: #ECEEF1;
+  --ash-200: #E1E4E8;
+  --ash-300: #CDD1D8;
+  --ash-500: #8B93A1;
+  --ash-600: #5F6877;
+  --ink: #1B1D22;
+  --accent: #5266EB;
+  --accent-soft: #EEF0FD;
+  --success: #1E7B50;
+  --success-bg: #E8F5EE;
+  --warning: #B26B00;
+  --warning-bg: #FDF3E1;
+  --danger: #C02B2B;
+  --danger-bg: #FBEAEA;
+  --info: #2F63B5;
+  --info-bg: #E9F0FA;
+}
+
 @layer base {
   * {
     border-color: #e2e8f0;
@@ -9,8 +32,19 @@
   body {
     background-color: #f8fafc;
     color: #0f172a;
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Mercury Typography & Figures */
+  .mercury-title {
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 

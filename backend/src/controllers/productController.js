@@ -1,11 +1,20 @@
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 /**
  * GET /api/products
  * Public endpoint — returns only ACTIVE products for the customer gallery.
+ * Cached in-memory with stale-while-revalidate for sub-millisecond response.
  */
 export const getActiveProducts = async (req, res) => {
   try {
+    const cached = cache.get('products:active');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+      return res.json(cached);
+    }
+
     const products = await prisma.product.findMany({
       where: { status: 'ACTIVE' },
       orderBy: { id: 'desc' },
@@ -22,6 +31,10 @@ export const getActiveProducts = async (req, res) => {
         stock: true,
       },
     });
+
+    cache.set('products:active', products, 60); // 60s cache
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json(products);
   } catch (error) {
     console.error('Error fetching active products:', error);
@@ -78,6 +91,13 @@ export const getProductById = async (req, res) => {
 
 export const getDefaultPaymentPolicy = async (req, res) => {
   try {
+    const cached = cache.get('policy:default');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+      return res.json(cached);
+    }
+
     let rule = await prisma.paymentRule.findFirst({
       where: { is_default: true },
     });
@@ -86,14 +106,19 @@ export const getDefaultPaymentPolicy = async (req, res) => {
         orderBy: { id: 'asc' },
       });
     }
-    return res.json(rule || {
+    const result = rule || {
       name: 'Cruzaro Payment Policy',
       default_deadline_days: 14,
       default_penalty_pct: 10,
       grace_period_days: 3,
       default_cancel_fee_pct: 15,
       max_refund_days: 30,
-    });
+    };
+
+    cache.set('policy:default', result, 300); // 5 min cache
+    res.set('X-Cache', 'MISS');
+    res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+    return res.json(result);
   } catch (error) {
     console.error('Error fetching payment policy:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 // ── Audit helper ─────────────────────────────────────────────────────────────
 
@@ -54,6 +55,8 @@ export const setPaymentDeadline = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('orders:');
+
     return res.json(updated);
   } catch (err) {
     console.error('setPaymentDeadline error:', err);
@@ -108,6 +111,10 @@ export const applyPenalty = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('revenue:');
+
     return res.json({
       ...updated,
       outstanding_before: outstanding,
@@ -155,6 +162,10 @@ export const waivePenalty = async (req, res) => {
       newValue: { penalty_amount: 0, payment_status: newStatus },
       ip: req.ip,
     });
+
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('revenue:');
 
     return res.json(updated);
   } catch (err) {
@@ -218,6 +229,12 @@ export const getOverdueOrders = async (req, res) => {
 
 export const getPaymentRules = async (req, res) => {
   try {
+    const cached = cache.get('rules:all');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const rules = await prisma.paymentRule.findMany({
       include: {
         _count: {
@@ -226,6 +243,9 @@ export const getPaymentRules = async (req, res) => {
       },
       orderBy: { id: 'asc' },
     });
+
+    cache.set('rules:all', rules, 60);
+    res.set('X-Cache', 'MISS');
     return res.json(rules);
   } catch (err) {
     console.error('getPaymentRules error:', err);
@@ -284,6 +304,10 @@ export const createPaymentRule = async (req, res) => {
       newValue: newRule,
       ip: req.ip,
     });
+
+    cache.invalidate('rules:');
+    cache.invalidate('policy:');
+    cache.invalidate('products:');
 
     return res.status(201).json(newRule);
   } catch (err) {
@@ -366,6 +390,10 @@ export const updatePaymentRules = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('rules:');
+    cache.invalidate('policy:');
+    cache.invalidate('products:');
+
     return res.json(updated);
   } catch (err) {
     console.error('updatePaymentRule error:', err);
@@ -404,6 +432,10 @@ export const deletePaymentRule = async (req, res) => {
       newValue: null,
       ip: req.ip,
     });
+
+    cache.invalidate('rules:');
+    cache.invalidate('policy:');
+    cache.invalidate('products:');
 
     return res.json({ success: true, message: 'Payment rule deleted successfully', deleted });
   } catch (err) {

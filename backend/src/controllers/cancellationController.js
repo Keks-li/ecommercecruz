@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import cache from '../utils/cache.js';
 
 async function audit({ userId, action, entity, entityId, oldValue, newValue, ip }) {
   await prisma.auditLog.create({
@@ -75,6 +76,8 @@ export const requestCancellation = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('orders:');
+
     return res.status(201).json(cancelReq);
   } catch (err) {
     console.error('requestCancellation error:', err);
@@ -147,6 +150,9 @@ export const approveCancellation = async (req, res) => {
       ip: req.ip,
     });
 
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+
     return res.json(updated);
   } catch (err) {
     console.error('approveCancellation error:', err);
@@ -189,6 +195,8 @@ export const rejectCancellation = async (req, res) => {
       newValue: { status: 'REJECTED' },
       ip: req.ip,
     });
+
+    cache.invalidate('orders:');
 
     return res.json(updated);
   } catch (err) {
@@ -247,6 +255,10 @@ export const processRefund = async (req, res) => {
       newValue: { status: 'REFUNDED', refundAmount: cancelReq.refund_amount },
       ip: req.ip,
     });
+
+    cache.invalidate('orders:');
+    cache.invalidate('stats:');
+    cache.invalidate('revenue:');
 
     return res.json(updated);
   } catch (err) {

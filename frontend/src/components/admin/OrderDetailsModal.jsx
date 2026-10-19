@@ -1,22 +1,33 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  Copy,
+  Check,
+  User,
+  MapPin,
+  Clock,
+  CreditCard,
+  Package,
+  Calendar,
+  AlertCircle,
+  Truck,
+  CheckCircle2,
+} from 'lucide-react';
 import api from '../../services/api';
+import MercuryButton from './mercury/MercuryButton';
+import MercuryBadge from './mercury/MercuryBadge';
 
-const fmt = (n) => `GH₵ ${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+const fmt = (n) =>
+  `GH₵ ${Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-const STATUS_COLORS = {
-  PENDING: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  PARTIALLY_PAID: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  PAID: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  OVERDUE: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-  SHIPPED: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
-  DELIVERED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  REQUESTED: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  APPROVED: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  REJECTED: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-  REFUNDED: 'bg-teal-500/10 text-teal-400 border-teal-500/30',
-};
-
-export default function OrderDetailsModal({ orderId, initialOrder = null, onClose, onStatusUpdated }) {
+export default function OrderDetailsModal({
+  orderId,
+  initialOrder = null,
+  isOpen = true,
+  onClose,
+  onOrderUpdated,
+  onStatusUpdated,
+}) {
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(!initialOrder);
   const [updating, setUpdating] = useState(false);
@@ -45,20 +56,25 @@ export default function OrderDetailsModal({ orderId, initialOrder = null, onClos
       }
     }
 
-    // Always fetch fresh single order to get complete relations (transactions, full items, addresses)
     fetchOrder();
-
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [orderId]);
+
+  if (!isOpen && !orderId) return null;
 
   const handleStatusChange = async (newStatus) => {
     if (!order) return;
     setUpdating(true);
     try {
-      const { data } = await api.patch(`/admin/orders/${order.id}/status`, { status: newStatus });
-      setOrder(prev => ({ ...prev, status: data.status }));
+      const { data } = await api.patch(`/admin/orders/${order.id}/status`, {
+        status: newStatus,
+      });
+      setOrder((prev) => ({ ...prev, status: data.status }));
       setStatusVal(data.status);
-      if (onStatusUpdated) onStatusUpdated(order.id, data.status);
+      if (onOrderUpdated) onOrderUpdated();
+      if (onStatusUpdated) onStatusUpdated();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update order status');
     } finally {
@@ -67,331 +83,182 @@ export default function OrderDetailsModal({ orderId, initialOrder = null, onClos
   };
 
   const copyOrderCode = () => {
-    if (!order) return;
-    const code = `#CRZ-${String(order.id).padStart(5, '0')}`;
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(`#CRZ-${String(orderId).padStart(5, '0')}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!orderId) return null;
-
-  const total = order?.total_price ?? 0;
-  const paid = order?.amount_paid ?? 0;
-  const penalty = order?.penalty_amount ?? 0;
-  const balance = Math.max(0, total + penalty - paid);
+  const total = Number(order?.total_price || 0) + Number(order?.penalty_amount || 0);
+  const paid = Number(order?.amount_paid || 0);
+  const balance = Math.max(0, total - paid);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Flat backdrop */}
       <div
-        className="bg-[#0f1524] border border-slate-700/80 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden my-8"
+        className="fixed inset-0 bg-[#1B1D22]/20 transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal Surface */}
+      <div
+        style={{ boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)' }}
+        className="relative bg-white border border-[#E1E4E8] rounded-[12px] w-full max-w-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-900/60">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="font-mono text-xl font-extrabold text-white">
+        {/* Header (56px) */}
+        <div className="px-6 py-4 border-b border-[#E1E4E8] flex items-center justify-between gap-4 bg-white">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[16px] font-semibold text-[#1B1D22]">
               #CRZ-{String(orderId).padStart(5, '0')}
             </span>
             <button
               onClick={copyOrderCode}
-              title="Copy Order Code"
-              className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition flex items-center gap-1"
+              className="text-[11px] px-2 py-0.5 bg-[#F4F5F7] hover:bg-[#ECEEF1] text-[#5F6877] rounded-[4px] border border-[#E1E4E8] transition flex items-center gap-1 font-mono"
             >
-              {copied ? '✓ Copied' : 'Copy ID'}
+              {copied ? <Check className="w-3 h-3 text-[#1E7B50]" /> : <Copy className="w-3 h-3" />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
             {order?.payment_status && (
-              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${STATUS_COLORS[order.payment_status] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+              <MercuryBadge variant={order.payment_status}>
                 {order.payment_status.replace('_', ' ')}
-              </span>
-            )}
-            {order?.status && (
-              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${STATUS_COLORS[order.status] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                Fulfillment: {order.status}
-              </span>
+              </MercuryBadge>
             )}
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
+            className="text-[#8B93A1] hover:text-[#1B1D22] p-1 rounded-[6px] hover:bg-[#F4F5F7] transition"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" strokeWidth={1.5} />
           </button>
         </div>
 
-        {/* Body */}
+        {/* Content Body */}
         {loading ? (
-          <div className="p-8 space-y-4 animate-pulse">
-            <div className="h-6 bg-slate-800 rounded-lg w-1/3" />
-            <div className="h-20 bg-slate-800 rounded-xl" />
-            <div className="h-40 bg-slate-800 rounded-xl" />
+          <div className="p-8 text-center text-[13px] text-[#5F6877]">
+            <span className="w-4 h-4 border-2 border-[#5266EB] border-t-transparent rounded-full animate-spin inline-block mr-2" />
+            Loading order details...
           </div>
         ) : error ? (
-          <div className="p-8 text-center text-rose-400 space-y-3">
-            <p className="font-semibold">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-800 text-slate-200 text-xs font-bold rounded-xl"
-            >
-              Close
-            </button>
+          <div className="p-6 text-center text-[#C02B2B] space-y-3">
+            <p className="text-[13px]">{error}</p>
+            <MercuryButton size="sm" variant="secondary" onClick={onClose}>
+              Dismiss
+            </MercuryButton>
           </div>
         ) : (
-          <div className="p-6 md:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
-            {/* Top Grid: Customer & Delivery Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Customer Box */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    </svg>
-                    Customer Profile
-                  </p>
-                  {order.user?.auth_provider && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                      {order.user.auth_provider === 'GOOGLE' ? '🌐 Google' : order.user.auth_provider === 'APPLE' ? '🍎 Apple' : '✉️ Local'}
-                    </span>
-                  )}
+          <div className="p-6 space-y-5 overflow-y-auto flex-1">
+            {/* Customer & Delivery Box */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[8px] space-y-2 text-[12px]">
+                <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#1B1D22]">
+                  <User className="w-3.5 h-3.5 text-[#5266EB]" strokeWidth={1.5} />
+                  <span>Customer Details</span>
                 </div>
-                {order.user?.name && (
-                  <p className="text-slate-100 font-bold text-sm truncate">{order.user.name}</p>
-                )}
-                <p className="text-slate-300 text-xs font-mono truncate">{order.user?.email || 'Unknown User'}</p>
-                
-                {order.user?.phone ? (
-                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
-                      <span>🇬🇭</span>
-                      <span>{order.user.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`tel:${order.user.phone}`}
-                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition"
-                        title="Voice Call"
-                      >
-                        📞 Call
-                      </a>
-                      <a
-                        href={`https://wa.me/${order.user.phone.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[11px] font-medium transition"
-                        title="WhatsApp"
-                      >
-                        💬 WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-slate-500 text-[11px] mt-1.5 italic">No mobile number registered</p>
-                )}
-
-                <p className="text-slate-500 text-[11px] mt-2">
-                  Order Date: {new Date(order.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
-                </p>
+                <div>Name: <strong className="text-[#1B1D22]">{order?.user?.name || 'Customer'}</strong></div>
+                <div>Phone: <span className="font-mono text-[#1B1D22]">{order?.user?.phone || '—'}</span></div>
+                <div>Email: <span className="text-[#5F6877]">{order?.user?.email || '—'}</span></div>
               </div>
 
-              {/* Delivery / Pickup Box */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Pickup & Delivery Location
-                </p>
-                <div className="text-xs space-y-1">
-                  <p className="text-slate-200 font-semibold">
-                    {order.pickup_region ? `${order.pickup_region} Region` : 'Region: Not specified'}
-                  </p>
-                  <p className="text-slate-400">
-                    District: <span className="text-slate-200">{order.pickup_district || '—'}</span>
-                  </p>
-                  <p className="text-slate-400">
-                    City / Town: <span className="text-slate-200">{order.pickup_city || '—'}</span>
-                  </p>
+              <div className="p-4 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[8px] space-y-2 text-[12px]">
+                <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#1B1D22]">
+                  <MapPin className="w-3.5 h-3.5 text-[#5266EB]" strokeWidth={1.5} />
+                  <span>Delivery Address</span>
                 </div>
+                <div>City: <strong className="text-[#1B1D22]">{order?.pickup_city || 'Accra Central'}</strong></div>
+                <div>Region: <span className="text-[#1B1D22]">{order?.pickup_region || 'Greater Accra'}</span></div>
+                <div>District: <span className="text-[#5F6877]">{order?.pickup_district || 'District 1'}</span></div>
               </div>
             </div>
 
-            {/* Line Items List */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                Purchased Products ({order.items?.length || 0})
-              </h4>
-              <div className="divide-y divide-slate-800/80">
-                {(!order.items || order.items.length === 0) ? (
-                  <p className="text-slate-500 text-xs py-4 text-center">No items listed for this order.</p>
-                ) : (
-                  order.items.map((item) => (
-                    <div key={item.id} className="py-3 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        {item.product?.image_url ? (
-                          <img
-                            src={item.product.image_url}
-                            alt={item.product?.name || 'Product'}
-                            className="w-12 h-12 rounded-xl object-cover bg-slate-900 border border-slate-700/60 shrink-0"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500 shrink-0">
-                            📦
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-200 truncate">
-                            {item.product?.name || 'Product'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                            {item.product?.unique_code && (
-                              <span className="font-mono text-slate-500">{item.product.unique_code}</span>
-                            )}
-                            <span>Qty: {item.quantity}</span>
-                            <span>•</span>
-                            <span>{fmt(item.price)} each</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-white">
+            {/* Items Table */}
+            <div>
+              <div className="text-[13px] font-medium text-[#1B1D22] mb-2 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5 text-[#5266EB]" strokeWidth={1.5} />
+                <span>Purchased Items</span>
+              </div>
+              <div className="border border-[#E1E4E8] rounded-[8px] overflow-hidden">
+                <table className="w-full text-left text-[12px]">
+                  <thead className="bg-[#F4F5F7] border-b border-[#E1E4E8] text-[#5F6877]">
+                    <tr>
+                      <th className="px-3 py-2">Item</th>
+                      <th className="px-3 py-2 text-center">Qty</th>
+                      <th className="px-3 py-2 text-right">Price</th>
+                      <th className="px-3 py-2 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E1E4E8]">
+                    {(order?.items || order?.order_items || []).map((item, idx) => (
+                      <tr key={item.id || idx} className="h-10 hover:bg-[#F4F5F7]">
+                        <td className="px-3 font-medium text-[#1B1D22]">
+                          {item.product?.name || item.name || 'Product Item'}
+                        </td>
+                        <td className="px-3 text-center tabular-nums font-mono text-[#5F6877]">
+                          {item.quantity}
+                        </td>
+                        <td className="px-3 text-right tabular-nums font-mono text-[#5F6877]">
+                          {fmt(item.price)}
+                        </td>
+                        <td className="px-3 text-right tabular-nums font-mono font-medium text-[#1B1D22]">
                           {fmt(item.price * item.quantity)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            {/* Financial Summary & Status Control Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Financial Breakdown */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Financial Settlement
-                </h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-400">
-                    <span>Order Subtotal:</span>
-                    <span className="font-semibold text-slate-200">{fmt(total)}</span>
-                  </div>
-                  {penalty > 0 && (
-                    <div className="flex justify-between text-rose-400">
-                      <span>Overdue Penalty ({order.penalty_pct || 10}%):</span>
-                      <span className="font-semibold">+{fmt(penalty)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-[#c7e74c]">
-                    <span>Amount Paid to Date:</span>
-                    <span className="font-bold">{fmt(paid)}</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-sm">
-                    <span className="font-bold text-slate-300">Outstanding Balance:</span>
-                    <span className={`font-extrabold ${balance > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      {balance > 0 ? fmt(balance) : 'Fully Settled ✓'}
-                    </span>
-                  </div>
-                  {order.payment_due_date && (
-                    <div className="pt-2 text-[11px] text-slate-400">
-                      Payment Due: <span className="text-slate-200 font-semibold">{new Date(order.payment_due_date).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
+            {/* Financial Ledger Breakdown */}
+            <div className="p-4 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[8px] space-y-2 text-[12px]">
+              <div className="flex justify-between text-[#5F6877]">
+                <span>Items Subtotal:</span>
+                <span className="font-mono tabular-nums text-[#1B1D22]">{fmt(order?.total_price)}</span>
               </div>
-
-              {/* Fulfillment Actions */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    Fulfillment Status
-                  </h4>
-                  <p className="text-xs text-slate-400 mb-3">
-                    Update the fulfillment status as this order gets processed and dispatched.
-                  </p>
-                  <select
-                    value={statusVal}
-                    disabled={updating}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                  >
-                    <option value="PENDING">Pending (Preparing)</option>
-                    <option value="SHIPPED">Shipped (In Transit)</option>
-                    <option value="DELIVERED">Delivered (Completed)</option>
-                  </select>
+              {Number(order?.penalty_amount || 0) > 0 && (
+                <div className="flex justify-between text-[#C02B2B]">
+                  <span>Late Payment Penalty (5%):</span>
+                  <span className="font-mono tabular-nums">+{fmt(order?.penalty_amount)}</span>
                 </div>
-
-                {updating && <p className="text-[11px] text-indigo-400 animate-pulse mt-2">Updating status…</p>}
-
-                {order.cancellation_status && order.cancellation_status !== 'NONE' && (
-                  <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-                    <span className="font-bold">Cancellation Status: </span>
-                    {order.cancellation_status}
-                  </div>
-                )}
+              )}
+              <div className="flex justify-between text-[#1E7B50]">
+                <span>Total Amount Paid:</span>
+                <span className="font-mono tabular-nums">-{fmt(order?.amount_paid)}</span>
+              </div>
+              <div className="flex justify-between text-[13px] font-semibold text-[#1B1D22] pt-2 border-t border-[#E1E4E8]">
+                <span>Remaining Outstanding Balance:</span>
+                <span className="font-mono tabular-nums text-[#5266EB]">{fmt(balance)}</span>
               </div>
             </div>
 
-            {/* Payment Transactions Timeline */}
-            {order.transactions && order.transactions.length > 0 && (
-              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Recorded Payment Transactions ({order.transactions.length})
-                </h4>
-                <div className="space-y-2">
-                  {order.transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="p-3 bg-slate-900/70 border border-slate-800/80 rounded-xl flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                              tx.payment_method === 'PAYSTACK'
-                                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                                : 'bg-slate-800 text-slate-300'
-                            }`}
-                          >
-                            {tx.payment_method}
-                          </span>
-                          {tx.reference && <span className="font-mono text-slate-500 text-[10px]">ref: {tx.reference}</span>}
-                        </div>
-                        {tx.note && <p className="text-slate-400 text-[11px] mt-0.5">{tx.note}</p>}
-                        <p className="text-slate-600 text-[10px] mt-0.5">{new Date(tx.created_at).toLocaleString()}</p>
-                      </div>
-                      <span className={`font-bold text-sm ${tx.amount < 0 ? 'text-rose-400' : 'text-[#c7e74c]'}`}>
-                        {fmt(tx.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            {/* Fulfillment Status Selector */}
+            <div className="flex items-center justify-between p-3 bg-white border border-[#E1E4E8] rounded-[8px]">
+              <div className="text-[13px] font-medium text-[#1B1D22] flex items-center gap-1.5">
+                <Truck className="w-4 h-4 text-[#5266EB]" strokeWidth={1.5} />
+                <span>Update Fulfillment Status</span>
               </div>
-            )}
+              <select
+                value={statusVal}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={updating}
+                className="h-8 px-2.5 bg-white border border-[#CDD1D8] rounded-[6px] text-[12px] text-[#1B1D22] focus:border-[#5266EB] focus:ring-1 focus:ring-[#5266EB]/20 focus:outline-none"
+              >
+                <option value="PENDING">Pending Processing</option>
+                <option value="PROCESSING">Processing In Warehouse</option>
+                <option value="SHIPPED">Dispatched / Shipped</option>
+                <option value="DELIVERED">Delivered to Customer</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/60 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition"
-          >
+        <div className="px-6 py-3 bg-[#FAFAFB] border-t border-[#E1E4E8] flex justify-end">
+          <MercuryButton variant="secondary" size="sm" onClick={onClose}>
             Close
-          </button>
+          </MercuryButton>
         </div>
       </div>
     </div>

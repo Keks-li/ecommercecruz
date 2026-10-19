@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 
+const optimizeCloudinaryUrl = (url, width = 400) => {
+  if (!url) return '';
+  if (url.includes('res.cloudinary.com') && url.includes('/upload/') && !url.includes('f_auto')) {
+    return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width},c_limit/`);
+  }
+  return url;
+};
+
 export default function ProductCard({ product, className = '' }) {
   const { addItem } = useCart();
   const navigate = useNavigate();
@@ -67,7 +75,7 @@ export default function ProductCard({ product, className = '' }) {
       {/* Image Showcase (Compact) */}
       <div className="w-full aspect-square rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-center p-3 mb-2.5 overflow-hidden relative">
         <img
-          src={product.image_url}
+          src={optimizeCloudinaryUrl(product.image_url, 400)}
           alt={product.name}
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-250"
           loading="lazy"
