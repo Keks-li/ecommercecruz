@@ -120,7 +120,7 @@ export const approveCancellation = async (req, res) => {
 
     const cancelReq = await prisma.cancellationRequest.findUnique({
       where: { id: reqId },
-      include: { order: true },
+      include: { order: { include: { items: true } } },
     });
     if (!cancelReq) return res.status(404).json({ error: 'Cancellation request not found' });
     if (cancelReq.status !== 'REQUESTED')
@@ -137,6 +137,16 @@ export const approveCancellation = async (req, res) => {
         data: { cancellation_status: 'APPROVED', status: 'CANCELLED' },
       });
 
+      // Restore product stock if order was paid and stock had been deducted
+      if (cancelReq.order?.amount_paid > 0 && Array.isArray(cancelReq.order.items)) {
+        for (const item of cancelReq.order.items) {
+          await tx.product.update({
+            where: { id: item.product_id },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+
       return upd;
     });
 
@@ -152,6 +162,7 @@ export const approveCancellation = async (req, res) => {
 
     cache.invalidate('orders:');
     cache.invalidate('stats:');
+    cache.invalidate('products:');
 
     return res.json(updated);
   } catch (err) {

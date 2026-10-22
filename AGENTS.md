@@ -216,13 +216,13 @@ All routes are prefixed with `/api`.
 6. **Audit trail** — All admin mutations must write to `AuditLog`. Audit rows are immutable.
 7. **Payment rules** — Attach a `PaymentRule` to a product. If none attached, use the rule where `is_default = true`.
 8. **Cloudinary** — Product images uploaded via multipart. `image_url` stores the Cloudinary secure URL.
-9. **Stock** — Decrement `stock` on order placement. Never allow orders for out-of-stock items.
+9. **Stock** — Decrement `stock` only when the customer pays for the items (upon successful payment receipt/verification), preventing stock reduction on cart abandonment or unpaid checkout initiation. Never allow orders for out-of-stock items. Restock items if a paid order is cancelled and approved.
 10. **Paystack Payment Gateway** — Paystack is the primary online payment gateway for Ghana (`GHS`). Security measures strictly enforced:
     - **Webhook Verification:** Cryptographic HMAC-SHA512 verification using `crypto.timingSafeEqual` against `process.env.PAYSTACK_SECRET_KEY` on raw request body (`req.rawBody`).
     - **Secret Key Isolation:** `PAYSTACK_SECRET_KEY` stays strictly on backend; never exposed to client or API logs.
     - **Idempotency Protection:** Double-check transaction references in `PaymentTransaction` before crediting to prevent double-crediting across webhooks and browser callbacks.
     - **Server-Side Validation:** Amount (in pesewas) and currency (`GHS`) verified against database prices and order balance; client-side amounts are never trusted.
-    - **Stock Safeguard:** Product stock decremented atomically upon order creation/placement (Rule 9).
+    - **Stock Safeguard:** Product stock decremented atomically upon first successful payment verification/receipt (Rule 9).
 11. **RESTful conventions** — Correct HTTP verbs. No RPC-style routes unless already established.
 
 ---

@@ -123,7 +123,10 @@ export async function processSuccessfulPayment({
     }
 
     // Refresh current order state inside transaction
-    const currentOrder = await tx.order.findUnique({ where: { id: parsedOrderId } });
+    const currentOrder = await tx.order.findUnique({
+      where: { id: parsedOrderId },
+      include: { items: true },
+    });
     const newAmountPaid = Number((currentOrder.amount_paid + paidAmount).toFixed(2));
     const effectiveTotal = Number((currentOrder.total_price + (currentOrder.penalty_amount || 0)).toFixed(2));
     const newPaymentStatus = derivePaymentStatus(effectiveTotal, newAmountPaid);
@@ -142,6 +145,16 @@ export async function processSuccessfulPayment({
         cancellation: true,
       },
     });
+
+    // Decrement stock ONLY when customer actually pays for the items (first payment received)
+    if (currentOrder.amount_paid === 0 && Array.isArray(currentOrder.items)) {
+      for (const item of currentOrder.items) {
+        await tx.product.update({
+          where: { id: item.product_id },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+    }
 
     // Record PaymentTransaction
     const createdTransaction = await tx.paymentTransaction.create({
@@ -186,6 +199,7 @@ export async function processSuccessfulPayment({
     cache.invalidate('orders:');
     cache.invalidate('stats:');
     cache.invalidate('revenue:');
+    cache.invalidate('products:');
   }
 
   return result;
@@ -308,14 +322,6 @@ export const initializeCheckoutPayment = async (req, res) => {
         })),
       });
 
-      // Decrement stock for purchased items
-      for (const item of validatedItems) {
-        await tx.product.update({
-          where: { id: item.product_id },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-
       return tx.order.findUnique({
         where: { id: newOrder.id },
         include: {
@@ -325,7 +331,6 @@ export const initializeCheckoutPayment = async (req, res) => {
     });
 
     cache.invalidate('orders:');
-    cache.invalidate('products:');
     cache.invalidate('stats:');
 
     // 3. Initialize Paystack transaction
