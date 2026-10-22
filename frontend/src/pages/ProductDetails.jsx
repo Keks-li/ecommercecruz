@@ -150,14 +150,13 @@ export default function ProductDetails() {
               
               {/* Type Badge */}
               <div className="absolute top-5 left-5 flex gap-2">
-                <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 shadow-sm">
-                  {product.unique_code}
+                <span className={`text-xs font-bold px-3 py-1 rounded-lg border shadow-xs uppercase tracking-wider ${
+                  product.type === 'COMBO'
+                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  {product.type === 'COMBO' ? 'Combo' : 'Single'}
                 </span>
-                {product.type === 'COMBO' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
-                    Bundle Set
-                  </span>
-                )}
               </div>
 
               {/* Status Badge */}
@@ -217,8 +216,9 @@ export default function ProductDetails() {
               <div className="flex items-baseline justify-between gap-4">
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Price</p>
-                  <p className="font-display text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                    GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <p className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                    <span className="text-sm font-semibold text-slate-500 mr-1">GH₵</span>
+                    {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 

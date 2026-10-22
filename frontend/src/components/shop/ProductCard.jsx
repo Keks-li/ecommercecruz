@@ -38,17 +38,18 @@ export default function ProductCard({ product, className = '' }) {
       {/* Top Tag & Quick Add */}
       <div className="flex items-center justify-between gap-1.5 mb-2">
         <div className="flex items-center gap-1 min-w-0">
-          {product.type === 'COMBO' ? (
-            <span className="text-[10px] font-bold tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md uppercase">
-              Bundle
-            </span>
-          ) : product.category ? (
-            <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md capitalize truncate max-w-[110px]">
+          <span
+            className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md uppercase border ${
+              product.type === 'COMBO'
+                ? 'text-purple-700 bg-purple-50 border-purple-200'
+                : 'text-slate-700 bg-slate-100 border-slate-200'
+            }`}
+          >
+            {product.type === 'COMBO' ? 'Combo' : 'Single'}
+          </span>
+          {product.category && (
+            <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md capitalize truncate max-w-[80px]">
               {product.category}
-            </span>
-          ) : (
-            <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-              In Stock
             </span>
           )}
         </div>
@@ -101,8 +102,9 @@ export default function ProductCard({ product, className = '' }) {
         {/* Price and Hire purchase */}
         <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-1">
           <div>
-            <p className="font-display text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
-              GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="font-display text-xs sm:text-[13px] font-bold text-slate-900 tracking-tight">
+              <span className="text-[10px] font-medium text-slate-500 mr-0.5">GH₵</span>
+              {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
 

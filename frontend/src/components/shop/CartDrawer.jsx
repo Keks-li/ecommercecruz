@@ -864,7 +864,9 @@ function CartItem({ item, onRemove, onQtyChange }) {
       {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-slate-900 text-xs font-semibold truncate leading-snug">{item.name}</p>
-        <p className="text-slate-500 text-[10px] font-mono mt-0.5">{item.unique_code}</p>
+        <p className="text-slate-500 text-[10px] font-semibold mt-0.5 uppercase tracking-wider">
+          {item.type === 'COMBO' ? 'Combo' : 'Single'}
+        </p>
         <p className="text-slate-900 text-xs font-bold mt-1 font-display">
           GH₵ {(item.price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
