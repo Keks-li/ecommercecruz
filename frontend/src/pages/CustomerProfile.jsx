@@ -2,16 +2,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { payWithPaystack } from '../services/paystack';
+import { useCart } from '../context/CartContext';
 import Navbar from '../components/shop/Navbar';
 import CartDrawer from '../components/shop/CartDrawer';
 import Footer from '../components/shop/Footer';
 
 export default function CustomerProfile() {
+  const { cartOpen, setCartOpen, closeCart } = useCart();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [paystackBanner, setPaystackBanner] = useState(null);
-  const [cartOpen, setCartOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'UNPAID' | 'PAID'
   const navigate = useNavigate();
 
@@ -475,7 +476,7 @@ export default function CustomerProfile() {
         </div>
       )}
 
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={cartOpen} onClose={closeCart} />
       <Footer />
     </div>
   );

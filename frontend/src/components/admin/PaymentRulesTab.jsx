@@ -62,6 +62,7 @@ export default function PaymentRulesTab() {
       enable_recurring: false,
       penalty_frequency: 'monthly',
       max_refund_days: 30,
+      min_deposit_pct: 20,
     });
     setIsModalOpen(true);
   };
@@ -95,6 +96,7 @@ export default function PaymentRulesTab() {
         enable_recurring: Boolean(form.enable_recurring),
         penalty_frequency: form.penalty_frequency || 'monthly',
         max_refund_days: Number(form.max_refund_days),
+        min_deposit_pct: parseFloat(form.min_deposit_pct) || 20,
       };
 
       if (modalMode === 'add') {
@@ -224,7 +226,13 @@ export default function PaymentRulesTab() {
             </div>
 
             {/* Metrics Breakdown */}
-            <div className="grid grid-cols-2 gap-3 text-[12px]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[12px]">
+              <div className="p-2.5 bg-[#EEF0FD]/60 border border-[#5266EB]/20 rounded-[6px]">
+                <span className="text-[#5266EB] block text-[11px] font-medium">Securing Deposit</span>
+                <span className="font-mono text-[#1B1D22] font-bold">
+                  {rule.min_deposit_pct ?? 20}%
+                </span>
+              </div>
               <div className="p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[6px]">
                 <span className="text-[#8B93A1] block text-[11px]">Payment Deadline</span>
                 <span className="font-mono text-[#1B1D22] font-semibold">
@@ -270,7 +278,17 @@ export default function PaymentRulesTab() {
             placeholder="e.g. Standard 14-Day Layaway"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <MercuryInput
+              label="Securing Deposit (%)"
+              type="number"
+              step="0.1"
+              min="1"
+              max="100"
+              required
+              value={form.min_deposit_pct ?? 20}
+              onChange={(e) => set('min_deposit_pct', e.target.value)}
+            />
             <MercuryInput
               label="Deadline (Days)"
               type="number"

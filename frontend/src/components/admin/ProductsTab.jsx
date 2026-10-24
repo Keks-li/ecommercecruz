@@ -220,11 +220,29 @@ export default function ProductsTab() {
       header: 'Price',
       key: 'price',
       isNumeric: true,
-      render: (row) => (
-        <span className="font-mono tabular-nums font-semibold text-[#1B1D22]">
-          GH₵ {Number(row.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-        </span>
-      ),
+      render: (row) => {
+        const hasDiscount = row.discount_pct && Number(row.discount_pct) > 0;
+        const effectivePrice = hasDiscount
+          ? Number((row.price * (1 - row.discount_pct / 100)).toFixed(2))
+          : row.price;
+        return (
+          <div className="flex flex-col items-end">
+            <span className="font-mono tabular-nums font-semibold text-[#1B1D22]">
+              GH₵ {Number(effectivePrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+            {hasDiscount && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[10px] text-[#8B93A1] line-through font-mono">
+                  GH₵ {Number(row.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                </span>
+                <span className="text-[10px] font-bold text-[#C02B2B] bg-[#FBEAEA] px-1 py-0.5 rounded border border-[#C02B2B]/20">
+                  -{Math.round(row.discount_pct)}%
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: 'Stock',
@@ -440,7 +458,7 @@ export default function ProductsTab() {
             placeholder="e.g. Samsung Double-Door Refrigerator"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <MercuryInput
               label="Price (GH₵)"
               name="price"
@@ -449,6 +467,16 @@ export default function ProductsTab() {
               defaultValue={currentProduct?.price || ''}
               required
               placeholder="0.00"
+            />
+            <MercuryInput
+              label="Discount (%)"
+              name="discount_pct"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              defaultValue={currentProduct?.discount_pct || 0}
+              placeholder="0"
             />
             <MercuryInput
               label="Warehouse Stock"
@@ -529,6 +557,12 @@ export default function ProductsTab() {
               if (!activeRule) return null;
               return (
                 <div className="mt-2 p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[6px] text-[11px] text-[#5F6877] flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <div>
+                    Securing Deposit:{' '}
+                    <span className="font-semibold text-[#1B1D22]">
+                      {activeRule.min_deposit_pct || 20}%
+                    </span>
+                  </div>
                   <div>
                     Deadline:{' '}
                     <span className="font-semibold text-[#1B1D22]">

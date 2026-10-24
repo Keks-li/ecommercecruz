@@ -81,6 +81,7 @@ export default function CartDrawer({ open, onClose }) {
     clearCart,
     clearWarnings,
     validateCart,
+    payNowMode,
   } = useCart();
 
   const navigate = useNavigate();
@@ -107,6 +108,25 @@ export default function CartDrawer({ open, onClose }) {
         const u = JSON.parse(localStorage.getItem('user') || '{}');
         if (u.phone) setContactPhone(u.phone);
       } catch (_) {}
+
+      if (payNowMode) {
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        if (token && userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            if (user.role === 'CUSTOMER') {
+              setCheckoutStep('address');
+            } else {
+              setAuthPrompt(true);
+            }
+          } catch {
+            setAuthPrompt(true);
+          }
+        } else {
+          setAuthPrompt(true);
+        }
+      }
     } else {
       setCheckoutSuccess(null);
       setAuthPrompt(false);
@@ -119,11 +139,11 @@ export default function CartDrawer({ open, onClose }) {
       setAmountToPay('');
       setPolicyAccepted(false);
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, payNowMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load payment policy when reaching payment step
+  // Load payment policy when reaching payment step or cart
   useEffect(() => {
-    if (open && checkoutStep === 'payment' && !paymentPolicy) {
+    if (open && !paymentPolicy) {
       api.get('/products/payment-policy')
         .then((res) => setPaymentPolicy(res.data))
         .catch(() => {
@@ -134,10 +154,11 @@ export default function CartDrawer({ open, onClose }) {
             grace_period_days: 3,
             default_cancel_fee_pct: 15,
             max_refund_days: 30,
+            min_deposit_pct: 20,
           });
         });
     }
-  }, [open, checkoutStep, paymentPolicy]);
+  }, [open, paymentPolicy]);
 
   // Trap body scroll while open
   useEffect(() => {
@@ -207,6 +228,7 @@ export default function CartDrawer({ open, onClose }) {
       setCheckoutError('Payment amount cannot exceed the order total.');
       return;
     }
+
     if (!policyAccepted) {
       setCheckoutError('Please review and check the Payment Policy agreement to proceed.');
       return;
@@ -600,9 +622,14 @@ export default function CartDrawer({ open, onClose }) {
 
               {/* Amount Input */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-700" htmlFor="payment-amount-input">
-                  Amount Paying Now (GH₵)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="payment-amount-input">
+                    Amount Paying Now (GH₵)
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Pay any amount
+                  </span>
+                </div>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold font-mono">
                     GH₵
@@ -620,18 +647,41 @@ export default function CartDrawer({ open, onClose }) {
                   />
                 </div>
 
+                {/* Installment Notice (Informational advisory only - customer can pay any amount) */}
+                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < totalPrice && (
+                  <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-blue-950 text-xs flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-[18px] shrink-0 text-blue-600 mt-0.5">info</span>
+                    <div className="space-y-0.5 leading-relaxed">
+                      <p className="font-bold text-blue-900">Installment Notice</p>
+                      <p className="text-[11px] text-blue-800">
+                        You can pay any amount today. Kindly note that an initial deposit of <strong>{paymentPolicy?.min_deposit_pct || 20}% (GH₵ {(totalPrice * ((paymentPolicy?.min_deposit_pct || 20) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize your item reservation.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick-fill preset buttons */}
                 <div className="flex gap-2 pt-1">
-                  {[25, 50, 75, 100].map(pct => {
+                  {[
+                    { pct: paymentPolicy?.min_deposit_pct || 25, label: `${paymentPolicy?.min_deposit_pct || 25}%` },
+                    { pct: 50, label: '50%' },
+                    { pct: 75, label: '75%' },
+                    { pct: 100, label: '100% (Full)' },
+                  ].map(({ pct, label }) => {
                     const val = (totalPrice * pct / 100);
+                    const isSelected = Math.abs(parseFloat(amountToPay || 0) - val) < 0.01;
                     return (
                       <button
                         key={pct}
                         type="button"
                         onClick={() => setAmountToPay(val.toFixed(2))}
-                        className="flex-1 py-1.5 text-[11px] font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-blue-600 hover:text-blue-600 transition shadow-xs"
+                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition shadow-xs ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-blue-600 hover:text-blue-600'
+                        }`}
                       >
-                        {pct}%
+                        {label}
                       </button>
                     );
                   })}
@@ -659,6 +709,12 @@ export default function CartDrawer({ open, onClose }) {
                 </div>
 
                 <ul className="space-y-2 text-xs text-slate-600">
+                  <li className="flex items-start gap-2 bg-blue-50/80 p-2.5 rounded-xl border border-blue-200">
+                    <span className="material-symbols-outlined text-[17px] text-blue-600 shrink-0 mt-0.5">verified_user</span>
+                    <span>
+                      <strong className="text-blue-900">Installment Reservation Notice:</strong> Paying by installment is flexible and you may choose any deposit amount. Depositing at least <strong className="text-blue-700">{paymentPolicy?.min_deposit_pct || 20}%</strong> secures and prioritizes your device reservation for dispatch.
+                    </span>
+                  </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
                     <span>
@@ -867,9 +923,21 @@ function CartItem({ item, onRemove, onQtyChange }) {
         <p className="text-slate-500 text-[10px] font-semibold mt-0.5 uppercase tracking-wider">
           {item.type === 'COMBO' ? 'Combo' : 'Single'}
         </p>
-        <p className="text-slate-900 text-xs font-bold mt-1 font-display">
-          GH₵ {(item.price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
+        <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+          <p className="text-slate-900 text-xs font-bold font-display">
+            GH₵ {(item.price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          {item.original_price && item.original_price > item.price && (
+            <span className="text-[10px] text-slate-400 line-through">
+              GH₵ {(item.original_price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
+          {item.discount_pct > 0 && (
+            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1 rounded">
+              -{Math.round(item.discount_pct)}%
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Controls */}

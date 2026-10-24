@@ -39,7 +39,10 @@ export const createOrder = async (req, res) => {
     }
 
     const productIds = items.map(item => Number(item.id));
-    const dbProducts = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const dbProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { payment_rule: true },
+    });
     const productMap = new Map(dbProducts.map(p => [p.id, p]));
 
     const validatedItems = [];
@@ -59,8 +62,12 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      totalPrice += dbProduct.price * qty;
-      validatedItems.push({ product_id: dbProduct.id, quantity: qty, price: dbProduct.price });
+      const effectivePrice = dbProduct.discount_pct > 0
+        ? Number((dbProduct.price * (1 - dbProduct.discount_pct / 100)).toFixed(2))
+        : dbProduct.price;
+
+      totalPrice += effectivePrice * qty;
+      validatedItems.push({ product_id: dbProduct.id, quantity: qty, price: effectivePrice });
     }
 
     const parsedAmountPaid = parseFloat(amount_paid);

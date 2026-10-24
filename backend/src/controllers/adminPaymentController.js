@@ -267,6 +267,7 @@ export const createPaymentRule = async (req, res) => {
       enable_recurring,
       penalty_frequency,
       max_refund_days,
+      min_deposit_pct,
     } = req.body;
 
     if (!name) return res.status(400).json({ error: 'Rule name is required' });
@@ -292,6 +293,7 @@ export const createPaymentRule = async (req, res) => {
           enable_recurring: Boolean(enable_recurring),
           penalty_frequency: penalty_frequency || 'monthly',
           max_refund_days: Number(max_refund_days) || 30,
+          min_deposit_pct: min_deposit_pct != null ? parseFloat(min_deposit_pct) : 20,
         },
       });
     });
@@ -342,6 +344,7 @@ export const updatePaymentRules = async (req, res) => {
       enable_recurring,
       penalty_frequency,
       max_refund_days,
+      min_deposit_pct,
     } = req.body;
 
     const existing = await prisma.paymentRule.findUnique({ where: { id: ruleId } });
@@ -376,6 +379,7 @@ export const updatePaymentRules = async (req, res) => {
           ...(enable_recurring != null && { enable_recurring: Boolean(enable_recurring) }),
           ...(penalty_frequency && { penalty_frequency }),
           ...(max_refund_days != null && { max_refund_days: Number(max_refund_days) }),
+          ...(min_deposit_pct != null && { min_deposit_pct: parseFloat(min_deposit_pct) }),
         },
       });
     });
@@ -500,6 +504,7 @@ export const getResolvedOrderRules = async (req, res) => {
       default_penalty_pct: 10,
       grace_period_days: 3,
       default_cancel_fee_pct: 15,
+      min_deposit_pct: 20,
     };
 
     const productRules = order.items
@@ -510,6 +515,7 @@ export const getResolvedOrderRules = async (req, res) => {
     let resolvedPenaltyPct = defaultRule.default_penalty_pct;
     let resolvedGraceDays = defaultRule.grace_period_days;
     let resolvedCancelFeePct = defaultRule.default_cancel_fee_pct;
+    let resolvedMinDepositPct = defaultRule.min_deposit_pct || 20;
 
     if (productRules.length > 0) {
       const deadlines = productRules.map(r => r.default_deadline_days).filter(d => d != null);
@@ -523,6 +529,9 @@ export const getResolvedOrderRules = async (req, res) => {
 
       const cancelFees = productRules.map(r => r.default_cancel_fee_pct).filter(c => c != null);
       if (cancelFees.length > 0) resolvedCancelFeePct = Math.max(...cancelFees);
+
+      const minDeposits = productRules.map(r => r.min_deposit_pct).filter(m => m != null);
+      if (minDeposits.length > 0) resolvedMinDepositPct = Math.max(...minDeposits);
     }
 
     return res.json({
@@ -530,6 +539,7 @@ export const getResolvedOrderRules = async (req, res) => {
       penalty_pct: resolvedPenaltyPct,
       grace_period_days: resolvedGraceDays,
       cancel_fee_pct: resolvedCancelFeePct,
+      min_deposit_pct: resolvedMinDepositPct,
     });
   } catch (error) {
     console.error('Error resolving order rules:', error);

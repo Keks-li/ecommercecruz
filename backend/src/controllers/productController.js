@@ -29,6 +29,15 @@ export const getActiveProducts = async (req, res) => {
         category: true,
         image_url: true,
         stock: true,
+        discount_pct: true,
+        payment_rule: {
+          select: {
+            id: true,
+            name: true,
+            min_deposit_pct: true,
+            default_deadline_days: true,
+          },
+        },
       },
     });
 
@@ -114,6 +123,7 @@ export const getDefaultPaymentPolicy = async (req, res) => {
       grace_period_days: 3,
       default_cancel_fee_pct: 15,
       max_refund_days: 30,
+      min_deposit_pct: 20,
     };
 
     cache.set('policy:default', result, 300); // 5 min cache

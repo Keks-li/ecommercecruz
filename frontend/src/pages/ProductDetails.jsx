@@ -17,12 +17,11 @@ const optimizeCloudinaryUrl = (url, width = 800) => {
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addItem } = useCart();
+  const { addItem, payNow, cartOpen, setCartOpen, closeCart } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [cartOpen, setCartOpen] = useState(false);
   const [qty, setQty] = useState(1);
   const [addedToast, setAddedToast] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -43,23 +42,31 @@ export default function ProductDetails() {
     fetchProduct();
   }, [id]);
 
-  const handleAddToCart = (openDrawer = false) => {
+  const handleAddToCart = (isPayNow = false) => {
     if (!product || product.stock <= 0) return;
     setAddingToCart(true);
 
-    // Add specified quantity
+    if (isPayNow) {
+      // Add items and trigger Pay Now
+      for (let i = 0; i < qty; i++) {
+        addItem(product);
+      }
+      setTimeout(() => {
+        setAddingToCart(false);
+        payNow(product);
+      }, 300);
+      return;
+    }
+
+    // Standard add to cart
     for (let i = 0; i < qty; i++) {
       addItem(product);
     }
 
     setTimeout(() => {
       setAddingToCart(false);
-      if (openDrawer) {
-        setCartOpen(true);
-      } else {
-        setAddedToast(true);
-        setTimeout(() => setAddedToast(false), 2500);
-      }
+      setAddedToast(true);
+      setTimeout(() => setAddedToast(false), 2500);
     }, 400);
   };
 
@@ -106,6 +113,13 @@ export default function ProductDetails() {
   }
 
   const isOutOfStock = product.stock <= 0;
+  const hasDiscount = product.discount_pct && Number(product.discount_pct) > 0;
+  const effectivePrice = hasDiscount
+    ? Number((product.price * (1 - product.discount_pct / 100)).toFixed(2))
+    : product.price;
+
+  const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
+  const minDepositAmount = Number((effectivePrice * (minDepositPct / 100)).toFixed(2));
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col antialiased">
@@ -216,10 +230,22 @@ export default function ProductDetails() {
               <div className="flex items-baseline justify-between gap-4">
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Price</p>
-                  <p className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                    <span className="text-sm font-semibold text-slate-500 mr-1">GH₵</span>
-                    {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                      <span className="text-sm font-semibold text-slate-500 mr-1">GH₵</span>
+                      {Number(effectivePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {hasDiscount && (
+                      <span className="text-sm text-slate-400 line-through">
+                        GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    )}
+                    {hasDiscount && (
+                      <span className="text-xs font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                        -{Math.round(product.discount_pct)}% OFF
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="text-right">
@@ -233,7 +259,7 @@ export default function ProductDetails() {
               <div className="pt-3 border-t border-slate-100 flex items-start gap-3">
                 <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">credit_score</span>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-900">Pay in installments:</strong> You don't have to pay all at once. Deposit an initial fraction at checkout and settle the remaining balance through your customer account.
+                  <strong className="text-slate-900">Pay in installments:</strong> You can pay any initial amount today. An initial deposit of at least <strong className="text-blue-700">{minDepositPct}% (GH₵ {minDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize your device reservation.
                 </p>
               </div>
             </div>
@@ -286,10 +312,10 @@ export default function ProductDetails() {
                 <button
                   onClick={() => handleAddToCart(true)}
                   disabled={isOutOfStock}
-                  className="py-4 px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-center gap-2 duration-200 disabled:opacity-50 shadow-sm"
+                  className="py-4 px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-center gap-2 duration-200 disabled:opacity-50 shadow-sm group/btn"
                 >
-                  <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
-                  <span>Instant Checkout</span>
+                  <span className="material-symbols-outlined text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
+                  <span>Pay Now (Full Amount)</span>
                 </button>
               </div>
             </div>
@@ -301,7 +327,7 @@ export default function ProductDetails() {
       </main>
 
       {/* Cart Drawer */}
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={cartOpen} onClose={closeCart} />
 
       {/* Toast Notification */}
       <div

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useReducer, useCallback } from 'react';
 import api from '../services/api';
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
@@ -22,11 +22,19 @@ function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD_ITEM': {
       const exists = state.items.find((i) => i.id === action.product.id);
+      const effectivePrice = action.product.discount_pct > 0
+        ? Number((action.product.price * (1 - action.product.discount_pct / 100)).toFixed(2))
+        : action.product.price;
+      const normalizedProduct = {
+        ...action.product,
+        original_price: action.product.price,
+        price: effectivePrice,
+      };
       const updatedItems = exists
         ? state.items.map((i) =>
             i.id === action.product.id ? { ...i, qty: i.qty + 1 } : i
           )
-        : [...state.items, { ...action.product, qty: 1 }];
+        : [...state.items, { ...normalizedProduct, qty: 1 }];
       saveCart(updatedItems);
       return { ...state, items: updatedItems };
     }
@@ -75,6 +83,9 @@ export function CartProvider({ children }) {
     validating: false,
   });
 
+  const [cartOpen, setCartOpen] = useState(false);
+  const [payNowMode, setPayNowMode] = useState(false);
+
   // Total item count for badge
   const totalItems = state.items.reduce((sum, i) => sum + i.qty, 0);
 
@@ -100,6 +111,21 @@ export function CartProvider({ children }) {
   const clearWarnings = useCallback(() => {
     dispatch({ type: 'CLEAR_WARNINGS' });
   }, []);
+
+  const openCart = useCallback(() => {
+    setCartOpen(true);
+  }, []);
+
+  const closeCart = useCallback(() => {
+    setCartOpen(false);
+    setPayNowMode(false);
+  }, []);
+
+  const payNow = useCallback((product) => {
+    addItem(product);
+    setPayNowMode(true);
+    setCartOpen(true);
+  }, [addItem]);
 
   /**
    * validateCart — called when the user opens the cart drawer/page.
@@ -144,6 +170,12 @@ export function CartProvider({ children }) {
         validating: state.validating,
         totalItems,
         totalPrice,
+        cartOpen,
+        payNowMode,
+        setCartOpen,
+        openCart,
+        closeCart,
+        payNow,
         addItem,
         removeItem,
         updateQty,

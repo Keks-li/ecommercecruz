@@ -29,10 +29,9 @@ function SkeletonCard() {
 
 export default function ProductGallery() {
   const { products, loading, error, refetch } = useProducts();
-  const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeTypeTab, setActiveTypeTab] = useState('ALL'); // 'ALL' | 'SINGLE' | 'COMBO'
-  const { totalItems } = useCart();
+  const { totalItems, cartOpen, setCartOpen, closeCart } = useCart();
   const { categoryName } = useParams();
   const navigate = useNavigate();
   const catalogRef = useRef(null);
@@ -281,7 +280,7 @@ export default function ProductGallery() {
       </main>
 
       {/* Cart Drawer */}
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CartDrawer open={cartOpen} onClose={closeCart} />
 
       {/* Footer */}
       <Footer />

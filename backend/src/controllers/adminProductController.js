@@ -5,7 +5,7 @@ import cache from '../utils/cache.js';
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, status, type, category, stock } = req.body;
+    const { name, description, price, status, type, category, stock, discount_pct } = req.body;
 
     if (!name || !description || !price) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -65,6 +65,7 @@ export const createProduct = async (req, res) => {
               category: category || null,
               image_url: result.secure_url,
               stock: parseInt(stock, 10) || 0,
+              discount_pct: discount_pct ? Math.max(0, Math.min(100, parseFloat(discount_pct) || 0)) : 0,
               payment_rule_id: paymentRuleId,
             },
             include: { payment_rule: true },
@@ -140,6 +141,9 @@ export const updateProduct = async (req, res) => {
     if (type) data.type = type;
     if (category !== undefined) data.category = category;
     if (stock !== undefined) data.stock = parseInt(stock, 10) || 0;
+    if (req.body.discount_pct !== undefined) {
+      data.discount_pct = Math.max(0, Math.min(100, parseFloat(req.body.discount_pct) || 0));
+    }
     if (req.body.payment_rule_id !== undefined) {
       let updateRuleId = null;
       if (req.body.payment_rule_id && req.body.payment_rule_id !== 'default' && req.body.payment_rule_id !== '') {
