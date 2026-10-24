@@ -113,9 +113,12 @@ export default function ProductDetails() {
   }
 
   const isOutOfStock = product.stock <= 0;
-  const hasDiscount = product.discount_pct && Number(product.discount_pct) > 0;
+  const discountPct = (product.discount_pct !== undefined && product.discount_pct !== null)
+    ? Number(product.discount_pct)
+    : 5;
+  const hasDiscount = discountPct > 0;
   const effectivePrice = hasDiscount
-    ? Number((product.price * (1 - product.discount_pct / 100)).toFixed(2))
+    ? Number((product.price * (1 - discountPct / 100)).toFixed(2))
     : product.price;
 
   const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
@@ -242,7 +245,7 @@ export default function ProductDetails() {
                     )}
                     {hasDiscount && (
                       <span className="text-xs font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                        -{Math.round(product.discount_pct)}% OFF
+                        -{Math.round(discountPct)}% OFF
                       </span>
                     )}
                   </div>
@@ -312,10 +315,16 @@ export default function ProductDetails() {
                 <button
                   onClick={() => handleAddToCart(true)}
                   disabled={isOutOfStock}
-                  className="py-4 px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-center gap-2 duration-200 disabled:opacity-50 shadow-sm group/btn"
+                  className="py-4 px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-between gap-3 duration-200 disabled:opacity-50 shadow-sm group/btn"
+                  title={isOutOfStock ? 'Out of stock' : 'Pay full amount now'}
                 >
-                  <span className="material-symbols-outlined text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
-                  <span>Pay Now (Full Amount)</span>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
+                    <span>Pay Now</span>
+                  </div>
+                  <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-sm sm:text-base">
+                    GH₵ {Number(effectivePrice * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
                 </button>
               </div>
             </div>

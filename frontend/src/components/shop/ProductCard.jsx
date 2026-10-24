@@ -35,9 +35,12 @@ export default function ProductCard({ product, className = '' }) {
   };
 
   const isOutOfStock = product.stock !== undefined && product.stock !== null && product.stock <= 0;
-  const hasDiscount = product.discount_pct && Number(product.discount_pct) > 0;
+  const discountPct = (product.discount_pct !== undefined && product.discount_pct !== null)
+    ? Number(product.discount_pct)
+    : 5;
+  const hasDiscount = discountPct > 0;
   const effectivePrice = hasDiscount
-    ? Number((product.price * (1 - product.discount_pct / 100)).toFixed(2))
+    ? Number((product.price * (1 - discountPct / 100)).toFixed(2))
     : product.price;
 
   const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
@@ -62,7 +65,7 @@ export default function ProductCard({ product, className = '' }) {
           </span>
           {hasDiscount && (
             <span className="text-[10px] font-extrabold tracking-tight px-1.5 py-0.5 rounded-md bg-rose-600 text-white shadow-2xs">
-              -{Math.round(product.discount_pct)}% OFF
+              -{Math.round(discountPct)}% OFF
             </span>
           )}
           {product.category && (
@@ -149,11 +152,16 @@ export default function ProductCard({ product, className = '' }) {
             type="button"
             onClick={handlePayNow}
             disabled={isOutOfStock}
-            className="w-full h-8 sm:h-8.5 rounded-xl bg-slate-900 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-bold transition-all duration-150 active:scale-[0.98] shadow-xs flex items-center justify-center gap-1.5 group/pay"
-            title={isOutOfStock ? 'Out of stock' : 'Pay full amount now'}
+            className="w-full h-8 sm:h-9 px-3 rounded-xl bg-slate-900 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] sm:text-xs font-bold transition-all duration-150 active:scale-[0.98] shadow-xs flex items-center justify-between gap-1.5 group/pay"
+            title={isOutOfStock ? 'Out of stock' : `Pay full amount now · GH₵ ${effectivePrice}`}
           >
-            <span className="material-symbols-outlined text-[15px] text-amber-400 group-hover/pay:scale-110 transition-transform">bolt</span>
-            <span>Pay Now</span>
+            <div className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-amber-400 group-hover/pay:scale-110 transition-transform">bolt</span>
+              <span>Pay Now</span>
+            </div>
+            <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-[11px] sm:text-xs">
+              GH₵ {Number(effectivePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </button>
         </div>
       </div>

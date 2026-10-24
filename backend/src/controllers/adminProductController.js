@@ -65,7 +65,7 @@ export const createProduct = async (req, res) => {
               category: category || null,
               image_url: result.secure_url,
               stock: parseInt(stock, 10) || 0,
-              discount_pct: discount_pct ? Math.max(0, Math.min(100, parseFloat(discount_pct) || 0)) : 0,
+              discount_pct: (discount_pct !== undefined && discount_pct !== '') ? Math.max(0, Math.min(100, parseFloat(discount_pct) || 0)) : 5,
               payment_rule_id: paymentRuleId,
             },
             include: { payment_rule: true },

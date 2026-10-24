@@ -103,7 +103,7 @@ export default function ProductsTab() {
 
     const formData = new FormData(e.target);
     for (let [key, value] of formData.entries()) {
-      if (!value) formData.delete(key);
+      if (value === '' || value === null || value === undefined) formData.delete(key);
     }
 
     // Ensure payment rule is explicitly set or falls back to default rule ID
@@ -221,9 +221,12 @@ export default function ProductsTab() {
       key: 'price',
       isNumeric: true,
       render: (row) => {
-        const hasDiscount = row.discount_pct && Number(row.discount_pct) > 0;
+        const discountPct = (row.discount_pct !== undefined && row.discount_pct !== null)
+          ? Number(row.discount_pct)
+          : 5;
+        const hasDiscount = discountPct > 0;
         const effectivePrice = hasDiscount
-          ? Number((row.price * (1 - row.discount_pct / 100)).toFixed(2))
+          ? Number((row.price * (1 - discountPct / 100)).toFixed(2))
           : row.price;
         return (
           <div className="flex flex-col items-end">
@@ -236,7 +239,7 @@ export default function ProductsTab() {
                   GH₵ {Number(row.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                 </span>
                 <span className="text-[10px] font-bold text-[#C02B2B] bg-[#FBEAEA] px-1 py-0.5 rounded border border-[#C02B2B]/20">
-                  -{Math.round(row.discount_pct)}%
+                  -{Math.round(discountPct)}%
                 </span>
               </div>
             )}
@@ -469,14 +472,14 @@ export default function ProductsTab() {
               placeholder="0.00"
             />
             <MercuryInput
-              label="Discount (%)"
+              label="Pay Now Discount (%)"
               name="discount_pct"
               type="number"
               step="0.1"
               min="0"
               max="100"
-              defaultValue={currentProduct?.discount_pct || 0}
-              placeholder="0"
+              defaultValue={currentProduct?.discount_pct !== undefined && currentProduct?.discount_pct !== null ? currentProduct.discount_pct : 5}
+              placeholder="5"
             />
             <MercuryInput
               label="Warehouse Stock"

@@ -62,8 +62,11 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      const effectivePrice = dbProduct.discount_pct > 0
-        ? Number((dbProduct.price * (1 - dbProduct.discount_pct / 100)).toFixed(2))
+      const discountPct = (dbProduct.discount_pct !== undefined && dbProduct.discount_pct !== null)
+        ? Number(dbProduct.discount_pct)
+        : 5;
+      const effectivePrice = discountPct > 0
+        ? Number((dbProduct.price * (1 - discountPct / 100)).toFixed(2))
         : dbProduct.price;
 
       totalPrice += effectivePrice * qty;

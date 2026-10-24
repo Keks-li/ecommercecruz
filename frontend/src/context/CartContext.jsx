@@ -22,8 +22,11 @@ function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD_ITEM': {
       const exists = state.items.find((i) => i.id === action.product.id);
-      const effectivePrice = action.product.discount_pct > 0
-        ? Number((action.product.price * (1 - action.product.discount_pct / 100)).toFixed(2))
+      const discountPct = (action.product.discount_pct !== undefined && action.product.discount_pct !== null)
+        ? Number(action.product.discount_pct)
+        : 5;
+      const effectivePrice = discountPct > 0
+        ? Number((action.product.price * (1 - discountPct / 100)).toFixed(2))
         : action.product.price;
       const normalizedProduct = {
         ...action.product,
