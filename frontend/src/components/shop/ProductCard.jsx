@@ -44,7 +44,7 @@ export default function ProductCard({ product, className = '' }) {
     : product.price;
 
   const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
-  const minDepositAmount = Number((effectivePrice * (minDepositPct / 100)).toFixed(2));
+  const minDepositAmount = Number((product.price * (minDepositPct / 100)).toFixed(2));
 
   return (
     <div
@@ -115,12 +115,29 @@ export default function ProductCard({ product, className = '' }) {
           {product.name}
         </h3>
 
-        {/* Price (Actual Price is first price) */}
-        <div className="pt-1.5 border-t border-slate-100">
-          <p className="font-display text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
-            <span className="text-[10px] font-medium text-slate-500 mr-0.5">GH₵</span>
-            {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
+        {/* Price & Installment Badge */}
+        <div className="pt-1.5 border-t border-slate-100 space-y-1.5">
+          <div className="flex items-center justify-between gap-1 flex-wrap">
+            <p className="font-display text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+              <span className="text-[10px] font-medium text-slate-500 mr-0.5">GH₵</span>
+              {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <span className="text-[9.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              Installment
+            </span>
+          </div>
+
+          {/* Highlighted Installment Plan */}
+          <div className="p-1.5 rounded-lg bg-blue-50/80 border border-blue-200/70 text-[9.5px] sm:text-[10px] text-blue-950 flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1 text-blue-900 font-semibold truncate">
+              <span className="material-symbols-outlined text-[13px] text-blue-600 shrink-0">payments</span>
+              <span className="truncate">Plan: {minDepositPct}% deposit</span>
+            </div>
+            <span className="text-blue-700 font-extrabold font-mono shrink-0">
+              GH₵ {minDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
         </div>
 
         {/* Pay Now Button (Only Pay Now displays discounted price, same line on mobile) */}
