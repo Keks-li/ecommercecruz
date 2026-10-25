@@ -43,8 +43,6 @@ export default function ProductCard({ product, className = '' }) {
     ? Number((product.price * (1 - discountPct / 100)).toFixed(2))
     : product.price;
 
-  const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
-  const minDepositAmount = Number((product.price * (minDepositPct / 100)).toFixed(2));
 
   return (
     <div
@@ -53,9 +51,9 @@ export default function ProductCard({ product, className = '' }) {
     >
       {/* Top Tag & Quick Add */}
       <div className="flex items-center justify-between gap-1.5 mb-2">
-        <div className="flex items-center gap-1 min-w-0 flex-wrap">
+        <div className="flex items-center gap-1 min-w-0 overflow-hidden flex-nowrap">
           <span
-            className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md uppercase border ${
+            className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md uppercase border shrink-0 ${
               product.type === 'COMBO'
                 ? 'text-purple-700 bg-purple-50 border-purple-200'
                 : 'text-slate-700 bg-slate-100 border-slate-200'
@@ -64,7 +62,7 @@ export default function ProductCard({ product, className = '' }) {
             {product.type === 'COMBO' ? 'Combo' : 'Single'}
           </span>
           {product.category && (
-            <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md capitalize truncate max-w-[80px]">
+            <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md capitalize truncate min-w-0">
               {product.category}
             </span>
           )}
@@ -129,14 +127,9 @@ export default function ProductCard({ product, className = '' }) {
           </div>
 
           {/* Highlighted Installment Plan */}
-          <div className="p-1.5 rounded-lg bg-blue-50/80 border border-blue-200/70 text-[9.5px] sm:text-[10px] text-blue-950 flex items-center justify-between gap-1">
-            <div className="flex items-center gap-1 text-blue-900 font-semibold truncate">
-              <span className="material-symbols-outlined text-[13px] text-blue-600 shrink-0">payments</span>
-              <span className="truncate">Plan: {minDepositPct}% deposit</span>
-            </div>
-            <span className="text-blue-700 font-extrabold font-mono shrink-0">
-              GH₵ {minDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+          <div className="p-1.5 rounded-lg bg-blue-50/80 border border-blue-200/70 text-[9.5px] sm:text-[10px] text-blue-950 flex items-center gap-1">
+            <span className="material-symbols-outlined text-[13px] text-blue-600 shrink-0">payments</span>
+            <span className="text-blue-900 font-semibold truncate">Installment plan available</span>
           </div>
         </div>
 
