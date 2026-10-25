@@ -72,16 +72,17 @@ export default function ProductDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
         <Navbar onCartClick={() => setCartOpen(true)} />
-        <div className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-pulse">
             <div className="w-full aspect-square bg-slate-200 rounded-3xl" />
-            <div className="space-y-4">
-              <div className="h-6 bg-slate-200 rounded-md w-1/3" />
-              <div className="h-10 bg-slate-200 rounded-lg w-3/4" />
-              <div className="h-8 bg-slate-200 rounded-lg w-1/4" />
-              <div className="h-32 bg-slate-200 rounded-2xl w-full" />
+            <div className="space-y-5 pt-2">
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-9 bg-slate-200 rounded-lg w-3/4" />
+              <div className="h-7 bg-slate-200 rounded-lg w-1/3" />
+              <div className="h-28 bg-slate-200 rounded-2xl w-full" />
+              <div className="h-12 bg-slate-200 rounded-2xl w-full" />
             </div>
           </div>
         </div>
@@ -92,17 +93,17 @@ export default function ProductDetails() {
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
         <Navbar onCartClick={() => setCartOpen(true)} />
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
             <span className="material-symbols-outlined text-3xl">error_outline</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900">Product Not Found</h2>
-          <p className="text-slate-500 text-sm max-w-md">{error || 'This device may be suspended or no longer listed.'}</p>
+          <p className="text-slate-500 text-sm max-w-md">{error || 'This item may be suspended or no longer listed.'}</p>
           <button
             onClick={() => navigate('/')}
-            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-semibold text-xs transition"
+            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-semibold text-sm transition"
           >
             Return to Store
           </button>
@@ -122,217 +123,206 @@ export default function ProductDetails() {
     : product.price;
 
   const minDepositPct = product.payment_rule?.min_deposit_pct || 20;
-  const minDepositAmount = Number((effectivePrice * (minDepositPct / 100)).toFixed(2));
+  const minDepositAmount = Number((product.price * qty * (minDepositPct / 100)).toFixed(2));
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col antialiased">
       <Navbar onCartClick={() => setCartOpen(true)} />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-        
-        {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-xs text-slate-500">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-xs text-slate-400 mb-8">
           <Link to="/" className="hover:text-blue-600 transition-colors flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px]">home</span>
-            Home
+            <span className="material-symbols-outlined text-[15px]">home</span>
+            <span>Home</span>
           </Link>
-          <span className="text-slate-300">/</span>
           {product.category && (
             <>
-              <Link 
+              <span className="text-slate-300">/</span>
+              <Link
                 to={`/category/${product.category.toLowerCase()}`}
                 className="hover:text-blue-600 transition-colors capitalize"
               >
                 {product.category}
               </Link>
-              <span className="text-slate-300">/</span>
             </>
           )}
-          <span className="text-slate-900 font-semibold truncate max-w-[200px] sm:max-w-xs">
-            {product.name}
-          </span>
+          <span className="text-slate-300">/</span>
+          <span className="text-slate-700 font-medium truncate max-w-[180px] sm:max-w-xs">{product.name}</span>
         </nav>
 
-        {/* 2-Column Product Showcase */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
-          
-          {/* Left Column: Image Showcase */}
-          <div className="lg:col-span-6 space-y-4">
-            <div className="relative aspect-square w-full rounded-3xl bg-white border border-slate-200 p-8 flex items-center justify-center overflow-hidden shadow-sm group">
+        {/* Main grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14 items-start">
+
+          {/* ── Left: Image panel ── */}
+          <div className="space-y-4">
+            <div className="relative aspect-square w-full rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden group flex items-center justify-center p-8">
               <img
                 src={optimizeCloudinaryUrl(product.image_url, 800)}
                 alt={product.name}
-                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                className="w-full h-full object-contain group-hover:scale-[1.04] transition-transform duration-300 ease-out"
               />
-              
-              {/* Type Badge */}
-              <div className="absolute top-5 left-5 flex gap-2">
-                <span className={`text-xs font-bold px-3 py-1 rounded-lg border shadow-xs uppercase tracking-wider ${
-                  product.type === 'COMBO'
-                    ? 'bg-purple-50 text-purple-700 border-purple-200'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
-                }`}>
-                  {product.type === 'COMBO' ? 'Combo' : 'Single'}
-                </span>
-              </div>
 
-              {/* Status Badge */}
-              <div className="absolute top-5 right-5">
-                {isOutOfStock ? (
-                  <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold tracking-wider uppercase">
-                    Out of Stock
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    In Stock ({product.stock})
-                  </span>
-                )}
-              </div>
+              {/* Type chip */}
+              <span className={`absolute top-4 left-4 text-[11px] font-bold px-2.5 py-1 rounded-lg border uppercase tracking-wider shadow-xs ${
+                product.type === 'COMBO'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {product.type === 'COMBO' ? 'Combo' : 'Single'}
+              </span>
+
+              {/* Stock chip */}
+              <span className={`absolute top-4 right-4 text-[11px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+                isOutOfStock
+                  ? 'bg-rose-50 text-rose-600 border-rose-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${ isOutOfStock ? 'bg-rose-500' : 'bg-emerald-500' }`} />
+                {isOutOfStock ? 'Out of Stock' : `${product.stock} in stock`}
+              </span>
             </div>
 
-            {/* Micro Guarantees */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center space-y-1 shadow-sm">
-                <span className="material-symbols-outlined text-blue-600 text-[20px]">verified</span>
-                <p className="text-[11px] font-bold text-slate-900">Genuine</p>
-                <p className="text-[9px] text-slate-500">100% Authentic</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center space-y-1 shadow-sm">
-                <span className="material-symbols-outlined text-blue-600 text-[20px]">local_shipping</span>
-                <p className="text-[11px] font-bold text-slate-900">Nationwide</p>
-                <p className="text-[9px] text-slate-500">Fast Ghana Pickup</p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center space-y-1 shadow-sm">
-                <span className="material-symbols-outlined text-blue-600 text-[20px]">security</span>
-                <p className="text-[11px] font-bold text-slate-900">Protected</p>
-                <p className="text-[9px] text-slate-500">Verified Platform</p>
-              </div>
+            {/* Trust strip */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { icon: 'verified',        label: 'Genuine',    sub: '100% Authentic'    },
+                { icon: 'local_shipping',  label: 'Nationwide', sub: 'Fast Ghana Pickup' },
+                { icon: 'security',        label: 'Secure',     sub: 'Verified Platform' },
+              ].map(({ icon, label, sub }) => (
+                <div key={label} className="bg-white border border-slate-200 rounded-2xl px-3 py-3.5 flex flex-col items-center gap-1.5 shadow-xs">
+                  <span className="material-symbols-outlined text-blue-600 text-[22px]">{icon}</span>
+                  <p className="text-[11px] font-bold text-slate-800 leading-none">{label}</p>
+                  <p className="text-[10px] text-slate-400 leading-none text-center">{sub}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right Column: Information, Pricing, & Actions */}
-          <div className="lg:col-span-6 space-y-6">
-            
-            {/* Title & Category */}
-            <div className="space-y-2">
+          {/* ── Right: Details panel ── */}
+          <div className="space-y-6">
+
+            {/* Product identity */}
+            <div>
               {product.category && (
-                <span className="text-xs uppercase font-bold tracking-widest text-blue-600">
-                  {product.category}
-                </span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500 mb-1.5">{product.category}</p>
               )}
-              <h1 className="font-display text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 {product.name}
               </h1>
             </div>
 
-            {/* Pricing Card */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-sm">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
+            {/* Pricing block */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+
+              {/* Price row + qty selector */}
+              <div className="flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Price</p>
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <p className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                      <span className="text-base font-semibold text-slate-500 mr-1">GH₵</span>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Price</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="font-display text-3xl font-extrabold text-slate-900 tracking-tight">
+                      <span className="text-base font-semibold text-slate-400 mr-0.5">GH₵</span>
                       {Number(product.price * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
-                    <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                      Installment Price
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                      Installment
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold">
-                    Hire Purchase Eligible
-                  </span>
-                </div>
-              </div>
-
-              {/* Installment Callout */}
-              <div className="pt-3 border-t border-slate-100 flex items-start gap-3">
-                <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">credit_score</span>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-900">Pay in flexible installments:</strong> You can deposit any initial amount today. An initial deposit of at least <strong className="text-blue-700 font-semibold">{minDepositPct}% (GH₵ {(Number(product.price * qty) * (minDepositPct / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize device reservation.
-                </p>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Overview & Specifications</h3>
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-line shadow-sm">
-                {product.description || 'No detailed description provided for this device.'}
-              </div>
-            </div>
-
-            {/* Quantity Selector & Purchase Actions */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Quantity:</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1">
+                {/* Qty selector */}
+                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-0.5 shrink-0">
                   <button
-                    onClick={() => setQty((prev) => Math.max(1, prev - 1))}
+                    onClick={() => setQty((p) => Math.max(1, p - 1))}
                     disabled={qty <= 1 || isOutOfStock}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white disabled:opacity-40 transition"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-900 disabled:opacity-30 transition"
                   >
                     <span className="material-symbols-outlined text-[16px]">remove</span>
                   </button>
-                  <span className="w-10 text-center font-bold text-sm text-slate-900">{qty}</span>
+                  <span className="w-9 text-center font-bold text-sm text-slate-900">{qty}</span>
                   <button
-                    onClick={() => setQty((prev) => Math.min(product.stock, prev + 1))}
+                    onClick={() => setQty((p) => Math.min(product.stock, p + 1))}
                     disabled={qty >= product.stock || isOutOfStock}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-white disabled:opacity-40 transition"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-white hover:text-slate-900 disabled:opacity-30 transition"
                   >
                     <span className="material-symbols-outlined text-[16px]">add</span>
                   </button>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <button
-                  id="addToCartBtn"
-                  onClick={() => handleAddToCart(false)}
-                  disabled={isOutOfStock || addingToCart}
-                  className="py-4 px-6 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm tracking-wide border border-slate-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 duration-200 disabled:opacity-50 shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {addingToCart ? 'sync' : 'add_shopping_cart'}
-                  </span>
-                  <span>{addingToCart ? 'Adding...' : 'Add to Cart'}</span>
-                </button>
-
-                <button
-                  onClick={() => handleAddToCart(true)}
-                  disabled={isOutOfStock}
-                  className="py-4 px-3 sm:px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs sm:text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-between gap-1.5 sm:gap-3 duration-200 disabled:opacity-50 shadow-sm group/btn whitespace-nowrap flex-nowrap overflow-hidden"
-                  title={isOutOfStock ? 'Out of stock' : 'Pay full amount now'}
-                >
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
-                    <span>Pay Now</span>
-                  </div>
-                  <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-xs sm:text-sm md:text-base shrink-0">
-                    GH₵ {Number(effectivePrice * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </button>
+              {/* Installment callout */}
+              <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-200/60 rounded-xl px-4 py-3">
+                <span className="material-symbols-outlined text-blue-500 text-[18px] shrink-0 mt-0.5">payments</span>
+                <p className="text-[12px] text-slate-600 leading-relaxed">
+                  <span className="font-semibold text-slate-800">Pay by installment:</span>{' '}
+                  Spread payments across flexible deposits. An initial deposit of{' '}
+                  <span className="font-bold text-blue-700">
+                    {minDepositPct}% (GH₵ {minDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </span>{' '}
+                  is recommended to secure your reservation.
+                </p>
               </div>
             </div>
 
+            {/* Description */}
+            {product.description && (
+              <div>
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Overview</h2>
+                <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm text-slate-600 leading-relaxed whitespace-pre-line shadow-xs">
+                  {product.description}
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                id="addToCartBtn"
+                onClick={() => handleAddToCart(false)}
+                disabled={isOutOfStock || addingToCart}
+                className="py-4 px-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 font-bold text-sm border border-slate-300 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  {addingToCart ? 'sync' : 'add_shopping_cart'}
+                </span>
+                <span>{addingToCart ? 'Adding…' : 'Add to Cart'}</span>
+              </button>
+
+              <button
+                onClick={() => handleAddToCart(true)}
+                disabled={isOutOfStock}
+                className="py-4 px-4 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm active:scale-[0.98] transition-all flex items-center justify-between gap-2 shadow-xs disabled:opacity-50 overflow-hidden group/pay"
+                title={isOutOfStock ? 'Out of stock' : 'Pay full amount now'}
+              >
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="material-symbols-outlined text-[18px] text-amber-400 group-hover/pay:scale-110 transition-transform">bolt</span>
+                  <span>Pay Now</span>
+                </div>
+                <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-sm shrink-0">
+                  GH₵ {Number(effectivePrice * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </button>
+            </div>
+
+            {/* Pay Now discount note */}
+            {hasDiscount && !isOutOfStock && (
+              <p className="text-[11px] text-slate-400 text-center">
+                <span className="material-symbols-outlined text-[13px] align-middle mr-0.5 text-amber-500">bolt</span>
+                Pay Now saves you <span className="font-bold text-slate-600">{discountPct}%</span> — GH₵{' '}
+                {Number((product.price - effectivePrice) * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} off
+              </p>
+            )}
+
           </div>
-
         </div>
-
       </main>
 
       {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onClose={closeCart} />
 
-      {/* Toast Notification */}
+      {/* Toast */}
       <div
         className={`fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 transition-all duration-300 ${
           addedToast ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
@@ -344,10 +334,7 @@ export default function ProductDetails() {
           <p className="text-slate-400">Cart updated successfully</p>
         </div>
         <button
-          onClick={() => {
-            setAddedToast(false);
-            setCartOpen(true);
-          }}
+          onClick={() => { setAddedToast(false); setCartOpen(true); }}
           className="ml-2 text-xs font-bold text-blue-400 hover:underline"
         >
           View Cart
