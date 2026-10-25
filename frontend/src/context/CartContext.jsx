@@ -31,7 +31,8 @@ function cartReducer(state, action) {
       const normalizedProduct = {
         ...action.product,
         original_price: action.product.price,
-        price: effectivePrice,
+        discounted_price: effectivePrice,
+        price: action.product.price,
       };
       const updatedItems = exists
         ? state.items.map((i) =>
@@ -92,8 +93,20 @@ export function CartProvider({ children }) {
   // Total item count for badge
   const totalItems = state.items.reduce((sum, i) => sum + i.qty, 0);
 
-  // Total price
-  const totalPrice = state.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  // Total actual price (installment price base)
+  const actualTotalPrice = state.items.reduce(
+    (sum, i) => sum + (Number(i.original_price) || Number(i.price)) * i.qty,
+    0
+  );
+
+  // Total discounted price for Pay Now
+  const discountedTotalPrice = state.items.reduce(
+    (sum, i) => sum + (Number(i.discounted_price) || Number(i.price)) * i.qty,
+    0
+  );
+
+  // Active totalPrice: if in payNowMode, use discountedTotalPrice; otherwise actualTotalPrice
+  const totalPrice = payNowMode ? discountedTotalPrice : actualTotalPrice;
 
   const addItem = useCallback((product) => {
     dispatch({ type: 'ADD_ITEM', product });
@@ -173,6 +186,8 @@ export function CartProvider({ children }) {
         validating: state.validating,
         totalItems,
         totalPrice,
+        actualTotalPrice,
+        discountedTotalPrice,
         cartOpen,
         payNowMode,
         setCartOpen,

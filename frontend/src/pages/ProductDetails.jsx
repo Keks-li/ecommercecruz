@@ -233,22 +233,10 @@ export default function ProductDetails() {
               <div className="flex items-baseline justify-between gap-4">
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Price</p>
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <p className="font-display text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                      <span className="text-sm font-semibold text-slate-500 mr-1">GH₵</span>
-                      {Number(effectivePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    {hasDiscount && (
-                      <span className="text-sm text-slate-400 line-through">
-                        GH₵ {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    )}
-                    {hasDiscount && (
-                      <span className="text-xs font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                        -{Math.round(discountPct)}% OFF
-                      </span>
-                    )}
-                  </div>
+                  <p className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-0.5">
+                    <span className="text-base font-semibold text-slate-500 mr-1">GH₵</span>
+                    {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
                 </div>
 
                 <div className="text-right">
@@ -258,12 +246,20 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              {/* Installment Callout */}
+              {/* Installment Callout (Highlighted actual installment price) */}
               <div className="pt-3 border-t border-slate-100 flex items-start gap-3">
-                <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">credit_score</span>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-900">Pay in installments:</strong> You can pay any initial amount today. An initial deposit of at least <strong className="text-blue-700">{minDepositPct}% (GH₵ {minDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize your device reservation.
-                </p>
+                <span className="material-symbols-outlined text-blue-600 text-[22px] shrink-0 mt-0.5">credit_score</span>
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Installment Price:</span>
+                    <span className="text-blue-700 font-extrabold font-mono bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg text-sm sm:text-base">
+                      GH₵ {Number(product.price * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Pay in flexible installments. You can deposit any amount today — a securing deposit of at least <strong className="text-blue-700 font-semibold">{minDepositPct}% (GH₵ {(Number(product.price * qty) * (minDepositPct / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize device reservation.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -315,14 +311,14 @@ export default function ProductDetails() {
                 <button
                   onClick={() => handleAddToCart(true)}
                   disabled={isOutOfStock}
-                  className="py-4 px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-between gap-3 duration-200 disabled:opacity-50 shadow-sm group/btn"
+                  className="py-4 px-3 sm:px-6 rounded-2xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs sm:text-sm tracking-wide active:scale-[0.98] transition-all flex items-center justify-between gap-1.5 sm:gap-3 duration-200 disabled:opacity-50 shadow-sm group/btn whitespace-nowrap flex-nowrap overflow-hidden"
                   title={isOutOfStock ? 'Out of stock' : 'Pay full amount now'}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined text-[18px] sm:text-[20px] text-amber-400 group-hover/btn:scale-110 transition-transform">bolt</span>
                     <span>Pay Now</span>
                   </div>
-                  <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-sm sm:text-base">
+                  <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-xs sm:text-sm md:text-base shrink-0">
                     GH₵ {Number(effectivePrice * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </button>

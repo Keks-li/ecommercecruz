@@ -74,6 +74,8 @@ export default function CartDrawer({ open, onClose }) {
     items,
     totalItems,
     totalPrice,
+    actualTotalPrice,
+    discountedTotalPrice,
     validating,
     suspendedWarnings,
     removeItem,
@@ -213,8 +215,11 @@ export default function CartDrawer({ open, onClose }) {
     }
 
     setCheckoutError('');
-    // Pre-fill amount with full total so user can adjust down
-    setAmountToPay(totalPrice.toFixed(2));
+    // Pre-fill amount: if payNowMode, use discountedTotalPrice, otherwise actualTotalPrice
+    const defaultAmount = payNowMode
+      ? (discountedTotalPrice || totalPrice).toFixed(2)
+      : (actualTotalPrice || totalPrice).toFixed(2);
+    setAmountToPay(defaultAmount);
     setCheckoutStep('payment');
   };
 
@@ -224,7 +229,8 @@ export default function CartDrawer({ open, onClose }) {
       setCheckoutError('Please enter a valid payment amount.');
       return;
     }
-    if (numAmount > totalPrice) {
+    const maxOrderTotal = payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice);
+    if (numAmount > maxOrderTotal) {
       setCheckoutError('Payment amount cannot exceed the order total.');
       return;
     }
@@ -604,17 +610,26 @@ export default function CartDrawer({ open, onClose }) {
               {/* Order Total Summary */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Full Order Total</span>
-                  <span className="text-slate-900 font-bold font-display">
-                    GH₵ {totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-slate-600 font-medium">
+                    {payNowMode ? 'Pay Now Total (Discounted)' : 'Installment Price Total'}
+                  </span>
+                  <span className={`font-bold font-display text-base ${!payNowMode ? 'text-blue-700 font-mono bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg' : 'text-slate-900'}`}>
+                    GH₵ {(payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
-                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < totalPrice && (
+                {payNowMode && (actualTotalPrice || totalPrice) > (discountedTotalPrice || totalPrice) && (
+                  <div className="flex justify-between items-center text-xs border-t border-slate-200/80 pt-2 text-emerald-700 font-medium">
+                    <span>Pay Now Discount Applied</span>
+                    <span>-GH₵ {((actualTotalPrice || totalPrice) - (discountedTotalPrice || totalPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+
+                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < (payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice)) && (
                   <div className="flex justify-between items-center text-sm border-t border-slate-200 pt-2">
                     <span className="text-slate-500">Remaining Balance</span>
                     <span className="text-blue-600 font-bold font-display">
-                      GH₵ {(totalPrice - parseFloat(amountToPay)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      GH₵ {Math.max(0, (actualTotalPrice || totalPrice) - parseFloat(amountToPay)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
@@ -638,23 +653,23 @@ export default function CartDrawer({ open, onClose }) {
                     id="payment-amount-input"
                     type="number"
                     min="0.01"
-                    max={totalPrice}
+                    max={payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice)}
                     step="0.01"
                     value={amountToPay}
                     onChange={(e) => setAmountToPay(e.target.value)}
                     className="block w-full pl-14 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-semibold focus:outline-none focus:bg-white focus:border-blue-600 transition-colors"
-                    placeholder={totalPrice.toFixed(2)}
+                    placeholder={(payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice)).toFixed(2)}
                   />
                 </div>
 
                 {/* Installment Notice (Informational advisory only - customer can pay any amount) */}
-                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < totalPrice && (
+                {parseFloat(amountToPay) > 0 && parseFloat(amountToPay) < (payNowMode ? (discountedTotalPrice || totalPrice) : (actualTotalPrice || totalPrice)) && (
                   <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-blue-950 text-xs flex items-start gap-2.5">
                     <span className="material-symbols-outlined text-[18px] shrink-0 text-blue-600 mt-0.5">info</span>
                     <div className="space-y-0.5 leading-relaxed">
                       <p className="font-bold text-blue-900">Installment Notice</p>
                       <p className="text-[11px] text-blue-800">
-                        You can pay any amount today. Kindly note that an initial deposit of <strong>{paymentPolicy?.min_deposit_pct || 20}% (GH₵ {(totalPrice * ((paymentPolicy?.min_deposit_pct || 20) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize your item reservation.
+                        You can pay any amount today towards the actual installment price of <strong className="text-blue-950">GH₵ {(actualTotalPrice || totalPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. An initial deposit of at least <strong>{paymentPolicy?.min_deposit_pct || 20}% (GH₵ {(((actualTotalPrice || totalPrice)) * ((paymentPolicy?.min_deposit_pct || 20) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize your item reservation.
                       </p>
                     </div>
                   </div>
@@ -925,18 +940,8 @@ function CartItem({ item, onRemove, onQtyChange }) {
         </p>
         <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
           <p className="text-slate-900 text-xs font-bold font-display">
-            GH₵ {(item.price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            GH₵ {((item.original_price || item.price) * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          {item.original_price && item.original_price > item.price && (
-            <span className="text-[10px] text-slate-400 line-through">
-              GH₵ {(item.original_price * item.qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          )}
-          {item.discount_pct > 0 && (
-            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1 rounded">
-              -{Math.round(item.discount_pct)}%
-            </span>
-          )}
         </div>
       </div>
 

@@ -45,8 +45,9 @@ export const createOrder = async (req, res) => {
     });
     const productMap = new Map(dbProducts.map(p => [p.id, p]));
 
-    const validatedItems = [];
-    let totalPrice = 0;
+    let actualTotalPrice = 0;
+    let discountedTotalPrice = 0;
+    const rawItems = [];
 
     for (const item of items) {
       const dbProduct = productMap.get(Number(item.id));
@@ -65,27 +66,40 @@ export const createOrder = async (req, res) => {
       const discountPct = (dbProduct.discount_pct !== undefined && dbProduct.discount_pct !== null)
         ? Number(dbProduct.discount_pct)
         : 5;
-      const effectivePrice = discountPct > 0
+      const discountedPrice = discountPct > 0
         ? Number((dbProduct.price * (1 - discountPct / 100)).toFixed(2))
         : dbProduct.price;
+      const actualPrice = dbProduct.price;
 
-      totalPrice += effectivePrice * qty;
-      validatedItems.push({ product_id: dbProduct.id, quantity: qty, price: effectivePrice });
+      actualTotalPrice += actualPrice * qty;
+      discountedTotalPrice += discountedPrice * qty;
+      rawItems.push({ dbProduct, qty, actualPrice, discountedPrice });
     }
 
     const parsedAmountPaid = parseFloat(amount_paid);
     if (isNaN(parsedAmountPaid) || parsedAmountPaid <= 0)
       return res.status(400).json({ error: 'Payment amount must be greater than zero' });
-    if (parsedAmountPaid > totalPrice)
+
+    // Pay Now full discounted price if user pays full upfront; otherwise installment on actual price
+    const isPayNowFull = parsedAmountPaid >= Number(discountedTotalPrice.toFixed(2)) - 0.01;
+    const finalTotalPrice = isPayNowFull ? Number(discountedTotalPrice.toFixed(2)) : Number(actualTotalPrice.toFixed(2));
+
+    if (parsedAmountPaid > finalTotalPrice)
       return res.status(400).json({ error: 'Payment amount cannot exceed the order total' });
 
-    const paymentStatus = derivePaymentStatus(totalPrice, parsedAmountPaid);
+    const validatedItems = rawItems.map(item => ({
+      product_id: item.dbProduct.id,
+      quantity: item.qty,
+      price: isPayNowFull ? item.discountedPrice : item.actualPrice,
+    }));
+
+    const paymentStatus = derivePaymentStatus(finalTotalPrice, parsedAmountPaid);
 
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           user_id: userId,
-          total_price: totalPrice,
+          total_price: finalTotalPrice,
           amount_paid: parsedAmountPaid,
           payment_status: paymentStatus,
           status: 'PENDING',

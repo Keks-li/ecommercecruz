@@ -63,11 +63,6 @@ export default function ProductCard({ product, className = '' }) {
           >
             {product.type === 'COMBO' ? 'Combo' : 'Single'}
           </span>
-          {hasDiscount && (
-            <span className="text-[10px] font-extrabold tracking-tight px-1.5 py-0.5 rounded-md bg-rose-600 text-white shadow-2xs">
-              -{Math.round(discountPct)}% OFF
-            </span>
-          )}
           {product.category && (
             <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded-md capitalize truncate max-w-[80px]">
               {product.category}
@@ -120,46 +115,28 @@ export default function ProductCard({ product, className = '' }) {
           {product.name}
         </h3>
 
-        {/* Price and Hire purchase */}
-        <div className="pt-1.5 border-t border-slate-100 space-y-1">
-          <div className="flex items-baseline justify-between gap-1 flex-wrap">
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <p className="font-display text-xs sm:text-[13px] font-bold text-slate-900 tracking-tight">
-                <span className="text-[10px] font-medium text-slate-500 mr-0.5">GH₵</span>
-                {Number(effectivePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              {hasDiscount && (
-                <span className="text-[10px] text-slate-400 line-through">
-                  GH₵{Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                </span>
-              )}
-            </div>
-
-            <span className="text-[9px] text-blue-600 font-semibold flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Installment</span>
-            </span>
-          </div>
-
-          <p className="text-[9px] text-slate-500 font-medium">
-            Flexible installments · <span className="text-blue-700 font-semibold">{minDepositPct}% deposit</span> recommended to secure
+        {/* Price (Actual Price is first price) */}
+        <div className="pt-1.5 border-t border-slate-100">
+          <p className="font-display text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+            <span className="text-[10px] font-medium text-slate-500 mr-0.5">GH₵</span>
+            {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
 
-        {/* Pay Now Button */}
+        {/* Pay Now Button (Only Pay Now displays discounted price, same line on mobile) */}
         <div className="pt-2">
           <button
             type="button"
             onClick={handlePayNow}
             disabled={isOutOfStock}
-            className="w-full h-8 sm:h-9 px-3 rounded-xl bg-slate-900 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] sm:text-xs font-bold transition-all duration-150 active:scale-[0.98] shadow-xs flex items-center justify-between gap-1.5 group/pay"
+            className="w-full h-8 sm:h-9 px-2 sm:px-3 rounded-xl bg-slate-900 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] sm:text-xs font-bold transition-all duration-150 active:scale-[0.98] shadow-xs flex items-center justify-between gap-1 group/pay whitespace-nowrap flex-nowrap overflow-hidden"
             title={isOutOfStock ? 'Out of stock' : `Pay full amount now · GH₵ ${effectivePrice}`}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 shrink-0">
               <span className="material-symbols-outlined text-[15px] sm:text-[16px] text-amber-400 group-hover/pay:scale-110 transition-transform">bolt</span>
               <span>Pay Now</span>
             </div>
-            <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-[11px] sm:text-xs">
+            <span className="font-mono tabular-nums text-emerald-400 font-extrabold text-[10.5px] sm:text-xs shrink-0">
               GH₵ {Number(effectivePrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </button>
