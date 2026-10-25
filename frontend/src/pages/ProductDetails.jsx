@@ -230,13 +230,19 @@ export default function ProductDetails() {
 
             {/* Pricing Card */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-sm">
-              <div className="flex items-baseline justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Price</p>
-                  <p className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-0.5">
-                    <span className="text-base font-semibold text-slate-500 mr-1">GH₵</span>
-                    {Number(product.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Price</p>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <p className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                      <span className="text-base font-semibold text-slate-500 mr-1">GH₵</span>
+                      {Number(product.price * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                      Installment Price
+                    </span>
+                  </div>
                 </div>
 
                 <div className="text-right">
@@ -246,20 +252,12 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              {/* Installment Callout (Highlighted actual installment price) */}
+              {/* Installment Callout */}
               <div className="pt-3 border-t border-slate-100 flex items-start gap-3">
-                <span className="material-symbols-outlined text-blue-600 text-[22px] shrink-0 mt-0.5">credit_score</span>
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Installment Price:</span>
-                    <span className="text-blue-700 font-extrabold font-mono bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg text-sm sm:text-base">
-                      GH₵ {Number(product.price * qty).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Pay in flexible installments. You can deposit any amount today — a securing deposit of at least <strong className="text-blue-700 font-semibold">{minDepositPct}% (GH₵ {(Number(product.price * qty) * (minDepositPct / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize device reservation.
-                  </p>
-                </div>
+                <span className="material-symbols-outlined text-blue-600 text-[20px] shrink-0 mt-0.5">credit_score</span>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <strong className="text-slate-900">Pay in flexible installments:</strong> You can deposit any initial amount today. An initial deposit of at least <strong className="text-blue-700 font-semibold">{minDepositPct}% (GH₵ {(Number(product.price * qty) * (minDepositPct / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong> is recommended to secure and prioritize device reservation.
+                </p>
               </div>
             </div>
 
