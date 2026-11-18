@@ -36,6 +36,16 @@ export default function ProductsTab() {
   const [selectedRuleId, setSelectedRuleId] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // Form controlled inputs for live pricing & stock preview
+  const [formPrice, setFormPrice] = useState('');
+  const [formDiscount, setFormDiscount] = useState('0');
+  const [formStock, setFormStock] = useState('10');
+
+  // Quick stock modal state
+  const [quickStockProduct, setQuickStockProduct] = useState(null);
+  const [quickStockValue, setQuickStockValue] = useState('');
+  const [quickStockSaving, setQuickStockSaving] = useState(false);
+
   const defaultRule = paymentRules.find((r) => r.is_default) || paymentRules[0];
 
   const fetchProducts = async () => {
@@ -80,6 +90,9 @@ export default function ProductsTab() {
   const openAddModal = () => {
     setModalMode('add');
     setCurrentProduct(null);
+    setFormPrice('');
+    setFormDiscount('0');
+    setFormStock('10');
     setSelectedRuleId(defaultRule ? String(defaultRule.id) : '');
     setIsModalOpen(true);
   };
@@ -87,6 +100,9 @@ export default function ProductsTab() {
   const openEditModal = (product) => {
     setModalMode('edit');
     setCurrentProduct(product);
+    setFormPrice(product.price != null ? String(product.price) : '');
+    setFormDiscount(product.discount_pct != null ? String(product.discount_pct) : '0');
+    setFormStock(String(product.stock ?? 0));
     setSelectedRuleId(
       product.payment_rule_id
         ? String(product.payment_rule_id)
@@ -97,13 +113,53 @@ export default function ProductsTab() {
     setIsModalOpen(true);
   };
 
+  const openQuickStock = (product) => {
+    setQuickStockProduct(product);
+    setQuickStockValue(String(product.stock ?? 0));
+  };
+
+  const handleSaveQuickStock = async (e) => {
+    e.preventDefault();
+    if (!quickStockProduct) return;
+    setQuickStockSaving(true);
+    try {
+      const parsed = Math.max(0, parseInt(quickStockValue, 10) || 0);
+      const { data } = await api.patch(`/admin/products/${quickStockProduct.id}/stock`, {
+        stock: parsed,
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === data.id ? { ...p, stock: data.stock } : p))
+      );
+      setQuickStockProduct(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update stock');
+    } finally {
+      setQuickStockSaving(false);
+    }
+  };
+
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     setSaving(true);
 
     const formData = new FormData(e.target);
-    for (let [key, value] of formData.entries()) {
-      if (value === '' || value === null || value === undefined) formData.delete(key);
+
+    // Sync controlled inputs
+    formData.set('price', formPrice || '0');
+    formData.set('discount_pct', formDiscount !== '' ? formDiscount : '0');
+    formData.set('stock', formStock !== '' ? formStock : '0');
+
+    // If an image was not selected in the file input (0 bytes), remove it from formData
+    const imageFile = formData.get('image');
+    if (imageFile instanceof File && imageFile.size === 0) {
+      formData.delete('image');
+    }
+
+    // Clean remaining empty fields
+    for (let [key, value] of Array.from(formData.entries())) {
+      if (key !== 'image' && (value === '' || value === null || value === undefined)) {
+        formData.delete(key);
+      }
     }
 
     // Ensure payment rule is explicitly set or falls back to default rule ID
@@ -223,7 +279,7 @@ export default function ProductsTab() {
       render: (row) => {
         const discountPct = (row.discount_pct !== undefined && row.discount_pct !== null)
           ? Number(row.discount_pct)
-          : 5;
+          : 0;
         const hasDiscount = discountPct > 0;
         const effectivePrice = hasDiscount
           ? Number((row.price * (1 - discountPct / 100)).toFixed(2))
@@ -258,9 +314,22 @@ export default function ProductsTab() {
         else if (stock <= 5) variant = 'warning';
 
         return (
-          <MercuryBadge variant={variant}>
-            {stock <= 0 ? 'Out of Stock' : `${stock} units`}
-          </MercuryBadge>
+          <div className="flex items-center justify-end gap-1.5">
+            <MercuryBadge variant={variant}>
+              {stock <= 0 ? 'Out of Stock' : `${stock} units`}
+            </MercuryBadge>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openQuickStock(row);
+              }}
+              title="Quick edit stock count"
+              className="p-1 rounded text-[#8B93A1] hover:text-[#5266EB] hover:bg-[#EEF0FD] transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         );
       },
     },
@@ -452,183 +521,351 @@ export default function ProductsTab() {
         title={modalMode === 'add' ? 'Add New Product' : 'Edit Product'}
         description="Configure product name, pricing, stock count, and images."
       >
-        <form onSubmit={handleSaveProduct} className="space-y-4">
-          <MercuryInput
-            label="Product Title"
-            name="name"
-            defaultValue={currentProduct?.name || ''}
-            required
-            placeholder="e.g. Samsung Double-Door Refrigerator"
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <MercuryInput
-              label="Price (GH₵)"
-              name="price"
-              type="number"
-              step="0.01"
-              defaultValue={currentProduct?.price || ''}
-              required
-              placeholder="0.00"
-            />
-            <MercuryInput
-              label="Pay Now Discount (%)"
-              name="discount_pct"
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              defaultValue={currentProduct?.discount_pct !== undefined && currentProduct?.discount_pct !== null ? currentProduct.discount_pct : 5}
-              placeholder="5"
-            />
-            <MercuryInput
-              label="Warehouse Stock"
-              name="stock"
-              type="number"
-              defaultValue={currentProduct?.stock || 0}
-              required
-              placeholder="10"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <div className="p-3 bg-[#EEF0FD] border border-[#5266EB]/20 rounded-[8px] text-[12px] text-[#3444B8] flex items-start gap-2">
+            <span className="font-bold text-[14px] leading-none mt-0.5">🛡️</span>
             <div>
-              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
-                Category
-              </label>
-              <select
-                name="category"
-                defaultValue={currentProduct?.category || 'Phones'}
-                className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
-              >
-                <option value="Phones">Phones</option>
-                <option value="Refrigerators">Refrigerators</option>
-                <option value="Washing">Washing</option>
-                <option value="AC Units">AC Units</option>
-                <option value="Microwaves">Microwaves</option>
-                <option value="Accessories">Accessories</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
-                Product Type
-              </label>
-              <select
-                name="type"
-                defaultValue={currentProduct?.type || 'SINGLE'}
-                className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
-              >
-                <option value="SINGLE">Single Item</option>
-                <option value="COMBO">Combo Bundle</option>
-              </select>
+              <span className="font-semibold text-[#1B1D22]">Customer Protection: </span>
+              <span>
+                Updates to pricing, discounts, and inventory stock apply to future orders. Customers who already purchased this product retain their original locked-in purchase price and terms.
+              </span>
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[13px] font-medium text-[#1B1D22]">
-                Payment Rule Policy <span className="text-[#5266EB]">*</span>
-              </label>
-              {defaultRule && (
-                <span className="text-[11px] text-[#5F6877]">
-                  Default Rule: <strong className="text-[#1B1D22]">{defaultRule.name}</strong>
-                </span>
-              )}
+          <form key={currentProduct?.id || 'new'} onSubmit={handleSaveProduct} className="space-y-4">
+            <MercuryInput
+              label="Product Title"
+              name="name"
+              defaultValue={currentProduct?.name || ''}
+              required
+              placeholder="e.g. Samsung Double-Door Refrigerator"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <MercuryInput
+                label="Price (GH₵)"
+                name="price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formPrice}
+                onChange={(e) => setFormPrice(e.target.value)}
+                required
+                placeholder="0.00"
+              />
+              <MercuryInput
+                label="Pay Now Discount (%)"
+                name="discount_pct"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={formDiscount}
+                onChange={(e) => setFormDiscount(e.target.value)}
+                placeholder="0"
+              />
+              <MercuryInput
+                label="Warehouse Stock (Units)"
+                name="stock"
+                type="number"
+                min="0"
+                step="1"
+                value={formStock}
+                onChange={(e) => setFormStock(e.target.value)}
+                required
+                placeholder="10"
+              />
             </div>
-            <select
-              name="payment_rule_id"
-              value={selectedRuleId}
-              onChange={(e) => setSelectedRuleId(e.target.value)}
-              className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
-            >
-              {paymentRules.length === 0 && defaultRule && (
-                <option value={defaultRule.id}>
-                  {defaultRule.name} (Default Policy)
-                </option>
-              )}
-              {paymentRules.map((rule) => (
-                <option key={rule.id} value={rule.id}>
-                  {rule.name} {rule.is_default ? '(Default Policy)' : ''} — {rule.default_deadline_days} days deadline, {rule.default_penalty_pct}% penalty
-                </option>
-              ))}
-            </select>
-            {/* Live terms preview */}
+
+            {/* Quick discount presets */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-[#5F6877]">
+                <span>Choose discount preset (or type custom % above):</span>
+                <span className="font-medium text-[#1B1D22]">Active: {formDiscount || '0'}%</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: '0% (No discount)', val: '0' },
+                  { label: '5%', val: '5' },
+                  { label: '10%', val: '10' },
+                  { label: '15%', val: '15' },
+                  { label: '20%', val: '20' },
+                  { label: '25%', val: '25' },
+                ].map((preset) => {
+                  const isSelected = String(formDiscount) === preset.val;
+                  return (
+                    <button
+                      key={preset.val}
+                      type="button"
+                      onClick={() => setFormDiscount(preset.val)}
+                      className={`px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-[#EEF0FD] text-[#5266EB] border border-[#5266EB]/40 font-semibold'
+                          : 'bg-[#FAFAFB] text-[#5F6877] border border-[#CDD1D8] hover:bg-[#F4F5F7] hover:text-[#1B1D22]'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Pricing Breakdown Card */}
             {(() => {
-              const activeRule =
-                paymentRules.find((r) => String(r.id) === String(selectedRuleId)) || defaultRule;
-              if (!activeRule) return null;
+              const p = parseFloat(formPrice) || 0;
+              const d = Math.max(0, Math.min(100, parseFloat(formDiscount) || 0));
+              const savings = Number((p * (d / 100)).toFixed(2));
+              const effective = Number((p - savings).toFixed(2));
+
               return (
-                <div className="mt-2 p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[6px] text-[11px] text-[#5F6877] flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <div>
-                    Securing Deposit:{' '}
-                    <span className="font-semibold text-[#1B1D22]">
-                      {activeRule.min_deposit_pct || 20}%
+                <div className="p-3 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[8px] text-[12px] space-y-1.5">
+                  <div className="flex items-center justify-between text-[#5F6877]">
+                    <span>Installment / Standard Base Price:</span>
+                    <span className="font-mono font-medium text-[#1B1D22]">
+                      GH₵ {p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div>
-                    Deadline:{' '}
-                    <span className="font-semibold text-[#1B1D22]">
-                      {activeRule.default_deadline_days} days
+                  <div className="flex items-center justify-between text-[#5F6877]">
+                    <span>Pay Now Discount ({d}%):</span>
+                    <span className="font-mono text-[#C02B2B] font-medium">
+                      - GH₵ {savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div>
-                    Overdue Penalty:{' '}
-                    <span className="font-semibold text-[#1B1D22]">
-                      {activeRule.default_penalty_pct}%
-                    </span>
-                  </div>
-                  <div>
-                    Grace Period:{' '}
-                    <span className="font-semibold text-[#1B1D22]">
-                      {activeRule.grace_period_days || 3} days
-                    </span>
-                  </div>
-                  <div>
-                    Cancellation Fee:{' '}
-                    <span className="font-semibold text-[#1B1D22]">
-                      {activeRule.default_cancel_fee_pct || 15}%
+                  <div className="flex items-center justify-between pt-1.5 border-t border-[#E1E4E8] font-semibold text-[#1B1D22]">
+                    <span>Customer Pays in Full (Pay Now):</span>
+                    <span className="font-mono text-[#1E7B50] text-[13px]">
+                      GH₵ {effective.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
               );
             })()}
-            <p className="text-[11px] text-[#8B93A1] mt-1">
-              Select the payment rule for this product. If not changed, the default rule ({defaultRule?.name || 'Default Policy'}) is applied automatically.
-            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                  Category
+                </label>
+                <select
+                  name="category"
+                  defaultValue={currentProduct?.category || 'Phones'}
+                  className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+                >
+                  <option value="Phones">Phones</option>
+                  <option value="Refrigerators">Refrigerators</option>
+                  <option value="Washing">Washing</option>
+                  <option value="AC Units">AC Units</option>
+                  <option value="Microwaves">Microwaves</option>
+                  <option value="Accessories">Accessories</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                  Product Type
+                </label>
+                <select
+                  name="type"
+                  defaultValue={currentProduct?.type || 'SINGLE'}
+                  className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+                >
+                  <option value="SINGLE">Single Item</option>
+                  <option value="COMBO">Combo Bundle</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[13px] font-medium text-[#1B1D22]">
+                  Payment Rule Policy <span className="text-[#5266EB]">*</span>
+                </label>
+                {defaultRule && (
+                  <span className="text-[11px] text-[#5F6877]">
+                    Default Rule: <strong className="text-[#1B1D22]">{defaultRule.name}</strong>
+                  </span>
+                )}
+              </div>
+              <select
+                name="payment_rule_id"
+                value={selectedRuleId}
+                onChange={(e) => setSelectedRuleId(e.target.value)}
+                className="w-full h-9 sm:h-10 bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] px-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+              >
+                {paymentRules.length === 0 && defaultRule && (
+                  <option value={defaultRule.id}>
+                    {defaultRule.name} (Default Policy)
+                  </option>
+                )}
+                {paymentRules.map((rule) => (
+                  <option key={rule.id} value={rule.id}>
+                    {rule.name} {rule.is_default ? '(Default Policy)' : ''} — {rule.default_deadline_days} days deadline, {rule.default_penalty_pct}% penalty
+                  </option>
+                ))}
+              </select>
+              {/* Live terms preview */}
+              {(() => {
+                const activeRule =
+                  paymentRules.find((r) => String(r.id) === String(selectedRuleId)) || defaultRule;
+                if (!activeRule) return null;
+                return (
+                  <div className="mt-2 p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[6px] text-[11px] text-[#5F6877] flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <div>
+                      Securing Deposit:{' '}
+                      <span className="font-semibold text-[#1B1D22]">
+                        {activeRule.min_deposit_pct || 20}%
+                      </span>
+                    </div>
+                    <div>
+                      Deadline:{' '}
+                      <span className="font-semibold text-[#1B1D22]">
+                        {activeRule.default_deadline_days} days
+                      </span>
+                    </div>
+                    <div>
+                      Overdue Penalty:{' '}
+                      <span className="font-semibold text-[#1B1D22]">
+                        {activeRule.default_penalty_pct}%
+                      </span>
+                    </div>
+                    <div>
+                      Grace Period:{' '}
+                      <span className="font-semibold text-[#1B1D22]">
+                        {activeRule.grace_period_days || 3} days
+                      </span>
+                    </div>
+                    <div>
+                      Cancellation Fee:{' '}
+                      <span className="font-semibold text-[#1B1D22]">
+                        {activeRule.default_cancel_fee_pct || 15}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+              <p className="text-[11px] text-[#8B93A1] mt-1">
+                Select the payment rule for this product. If not changed, the default rule ({defaultRule?.name || 'Default Policy'}) is applied automatically.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                Description
+              </label>
+              <textarea
+                name="description"
+                rows={3}
+                defaultValue={currentProduct?.description || ''}
+                placeholder="Product specs, warranty details, and specifications..."
+                className="w-full bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] p-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
+              />
+            </div>
+
+            {modalMode === 'edit' && currentProduct?.image_url && (
+              <div className="flex items-center gap-3 p-2.5 bg-[#FAFAFB] border border-[#E1E4E8] rounded-[8px]">
+                <img
+                  src={currentProduct.image_url}
+                  alt=""
+                  className="w-12 h-12 rounded-[6px] object-cover border border-[#CDD1D8] bg-white shrink-0"
+                />
+                <div className="text-[12px]">
+                  <div className="font-medium text-[#1B1D22]">Current Active Image</div>
+                  <div className="text-[11px] text-[#8B93A1]">
+                    Leave the file input below unselected to keep this image, or choose a new file to replace it.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
+                Product Image File (Cloudinary)
+              </label>
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                required={modalMode === 'add'}
+                className="w-full text-[13px] text-[#5F6877] file:mr-3 file:py-1.5 file:px-3 file:rounded-[6px] file:border file:border-[#CDD1D8] file:bg-[#F4F5F7] file:text-[12px] file:font-medium file:text-[#1B1D22] hover:file:bg-[#ECEEF1] cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E4E8]">
+              <MercuryButton variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </MercuryButton>
+              <MercuryButton variant="primary" type="submit" disabled={saving}>
+                {saving ? 'Saving...' : modalMode === 'add' ? 'Create Product' : 'Save Changes'}
+              </MercuryButton>
+            </div>
+          </form>
+        </div>
+      </MercuryModal>
+
+      {/* Quick Stock Modal */}
+      <MercuryModal
+        isOpen={Boolean(quickStockProduct)}
+        onClose={() => setQuickStockProduct(null)}
+        title={`Update Stock: ${quickStockProduct?.name || ''}`}
+        description={`SKU: ${quickStockProduct?.unique_code || ''} · Update inventory units on hand.`}
+      >
+        <form onSubmit={handleSaveQuickStock} className="space-y-4">
+          <div>
+            <div className="text-[12px] text-[#5F6877] mb-1">Current Stock Level:</div>
+            <div className="text-[20px] font-mono font-bold text-[#1B1D22]">
+              {quickStockProduct?.stock ?? 0} units
+            </div>
           </div>
+
+          <MercuryInput
+            label="New Warehouse Stock (Units)"
+            name="quickStock"
+            type="number"
+            min="0"
+            step="1"
+            value={quickStockValue}
+            onChange={(e) => setQuickStockValue(e.target.value)}
+            required
+          />
 
           <div>
-            <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
-              Description
-            </label>
-            <textarea
-              name="description"
-              rows={3}
-              defaultValue={currentProduct?.description || ''}
-              placeholder="Product specs, warranty details, and specifications..."
-              className="w-full bg-white border border-[#CDD1D8] rounded-[8px] text-[13px] p-3 text-[#1B1D22] focus:border-[#5266EB] focus:ring-2 focus:ring-[#5266EB]/25 focus:outline-none"
-            />
+            <div className="text-[11px] font-medium text-[#5F6877] mb-1.5">Quick Adjustments:</div>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: '+5', delta: 5 },
+                { label: '+10', delta: 10 },
+                { label: '+25', delta: 25 },
+                { label: '+50', delta: 50 },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    const cur = parseInt(quickStockValue, 10) || 0;
+                    setQuickStockValue(String(Math.max(0, cur + item.delta)));
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-mono font-medium bg-[#FAFAFB] hover:bg-[#EEF0FD] text-[#1B1D22] border border-[#CDD1D8] rounded-[6px] transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setQuickStockValue('0')}
+                className="px-2.5 py-1 text-[11px] font-medium bg-[#FBEAEA] hover:bg-[#F7D8D8] text-[#C02B2B] border border-[#C02B2B]/20 rounded-[6px] transition-colors"
+              >
+                Set Out of Stock (0)
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[13px] font-medium text-[#1B1D22] mb-1.5">
-              Product Image File (Cloudinary)
-            </label>
-            <input
-              type="file"
-              name="image"
-              accept="image/*"
-              className="w-full text-[13px] text-[#5F6877] file:mr-3 file:py-1.5 file:px-3 file:rounded-[6px] file:border file:border-[#CDD1D8] file:bg-[#F4F5F7] file:text-[12px] file:font-medium file:text-[#1B1D22] hover:file:bg-[#ECEEF1] cursor-pointer"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E4E8]">
-            <MercuryButton variant="secondary" onClick={() => setIsModalOpen(false)}>
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#E1E4E8]">
+            <MercuryButton variant="secondary" onClick={() => setQuickStockProduct(null)}>
               Cancel
             </MercuryButton>
-            <MercuryButton variant="primary" type="submit" disabled={saving}>
-              {saving ? 'Saving...' : modalMode === 'add' ? 'Create Product' : 'Save Changes'}
+            <MercuryButton variant="primary" type="submit" disabled={quickStockSaving}>
+              {quickStockSaving ? 'Saving...' : 'Update Stock'}
             </MercuryButton>
           </div>
         </form>

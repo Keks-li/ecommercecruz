@@ -287,7 +287,7 @@ export const initializeCheckoutPayment = async (req, res) => {
 
       const discountPct = (dbProduct.discount_pct !== undefined && dbProduct.discount_pct !== null)
         ? Number(dbProduct.discount_pct)
-        : 5;
+        : 0;
       const discountedPrice = discountPct > 0
         ? Number((dbProduct.price * (1 - discountPct / 100)).toFixed(2))
         : dbProduct.price;

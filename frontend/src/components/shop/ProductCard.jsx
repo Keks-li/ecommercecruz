@@ -37,7 +37,7 @@ export default function ProductCard({ product, className = '' }) {
   const isOutOfStock = product.stock !== undefined && product.stock !== null && product.stock <= 0;
   const discountPct = (product.discount_pct !== undefined && product.discount_pct !== null)
     ? Number(product.discount_pct)
-    : 5;
+    : 0;
   const hasDiscount = discountPct > 0;
   const effectivePrice = hasDiscount
     ? Number((product.price * (1 - discountPct / 100)).toFixed(2))

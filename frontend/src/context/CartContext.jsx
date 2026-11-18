@@ -24,7 +24,7 @@ function cartReducer(state, action) {
       const exists = state.items.find((i) => i.id === action.product.id);
       const discountPct = (action.product.discount_pct !== undefined && action.product.discount_pct !== null)
         ? Number(action.product.discount_pct)
-        : 5;
+        : 0;
       const effectivePrice = discountPct > 0
         ? Number((action.product.price * (1 - discountPct / 100)).toFixed(2))
         : action.product.price;

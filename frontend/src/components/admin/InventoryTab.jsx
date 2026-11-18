@@ -68,12 +68,13 @@ export default function InventoryTab() {
     if (!editingProduct) return;
     setSaving(true);
     try {
-      await api.patch(`/admin/products/${editingProduct.id}`, {
-        stock: parseInt(newStock, 10),
+      const parsedStock = Math.max(0, parseInt(newStock, 10) || 0);
+      const { data } = await api.patch(`/admin/products/${editingProduct.id}/stock`, {
+        stock: parsedStock,
       });
       setProducts((prev) =>
         prev.map((p) =>
-          p.id === editingProduct.id ? { ...p, stock: parseInt(newStock, 10) } : p
+          p.id === editingProduct.id ? { ...p, stock: data.stock } : p
         )
       );
       setEditingProduct(null);
